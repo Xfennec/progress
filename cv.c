@@ -198,9 +198,9 @@ int pid_count, fd_count;
 int i,j;
 pidinfo_t pidinfo_list[MAX_PIDS];
 fdinfo_t fdinfo;
+fdinfo_t biggest_fd;
 int fdnum_list[MAX_FD_PER_PID];
 off_t max_size;
-int biggest_fd;
 char fsize[64];
 char fpos[64];
 
@@ -211,13 +211,17 @@ for(i = 0 ; proc_names[i] ; i++) {
                                           pidinfo_list + pid_count,
                                           MAX_PIDS - pid_count);
     if(pid_count >= MAX_PIDS) {
-        fprintf(stderr,"Found too much procs (max = %d)\n",MAX_PIDS);
+        fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
         break;
     }
 }
 
 if(!pid_count) {
-    fprintf(stderr,"No interesting command currently running.\n");
+    fprintf(stderr,"No command currently running: ");
+    for(i = 0 ; proc_names[i] ; i++) {
+        fprintf(stderr,"%s, ", proc_names[i]);
+    }
+    fprintf(stderr,"exiting.\n");
     return 0;
 }
 
@@ -225,35 +229,32 @@ for(i = 0 ; i < pid_count ; i++) {
     fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
 
     max_size = 0;
-    biggest_fd = -1;
 
     // let's find the biggest opened file
     for(j = 0 ; j < fd_count ; j++) {
         get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
         if(fdinfo.size > max_size) {
-            biggest_fd = j;
+            biggest_fd = fdinfo;
             max_size = fdinfo.size;
         }
     }
 
-    if(biggest_fd < 0) { // nothing found
+    if(!max_size) { // nothing found
         printf("[%5d] %s inactive or flushing\n",
                 pidinfo_list[i].pid,
                 pidinfo_list[i].name);
         continue;
     }
 
-    // should use a cache ... (shame)
-    get_fdinfo(pidinfo_list[i].pid, fdnum_list[biggest_fd], &fdinfo);
-
-    format_size(fdinfo.pos, fpos);
-    format_size(fdinfo.size, fsize);
+    // We've our biggest_fd, now
+    format_size(biggest_fd.pos, fpos);
+    format_size(biggest_fd.size, fsize);
 
     printf("[%5d] %s %s %.1f%% (%s / %s)\n",
         pidinfo_list[i].pid,
         pidinfo_list[i].name,
-        fdinfo.name,
-        ((double)100 / (double)fdinfo.size) * (double)fdinfo.pos,
+        biggest_fd.name,
+        ((double)100 / (double)biggest_fd.size) * (double)biggest_fd.pos,
         fpos,
         fsize);
 }
