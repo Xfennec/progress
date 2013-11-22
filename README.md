@@ -8,6 +8,8 @@ This tool can be described as a **Tiny** Dirty Linux Only C command that looks
 for coreutils basic commands (currently cp, mv, dd and cat) currently running
 on your system and displays the percentage of copied data.
 
+![cv screenshot with cp and mv](https://raw.github.com/Xfennec/cv/master/capture.png)
+
 It's probably easy to add a progress bar, and with a bit more work, a "top-like"
 mode with estimated time and data throughput.
 
