@@ -27,11 +27,16 @@
 #include <ctype.h>
 #include <libgen.h>
 
+#include <getopt.h>
+
+#include <sys/ioctl.h>
+
 #include "cv.h"
 #include "sizes.h"
 
-char *proc_names[]={"cp", "mv", "dd", "cat", NULL};
-//~ char *proc_names[]={"chrome", "firefox", NULL};
+char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "cut", "sort", NULL};
+char *proc_specifiq = NULL;
+signed char flag_quiet = 0;
 
 signed char is_numeric(char *str)
 {
@@ -190,6 +195,90 @@ while(fgets(line, LINE_LEN - 1, fp) != NULL) {
 return 1;
 }
 
+void print_bar(float perc, int char_available)
+{
+int i;
+int num;
+
+num = (char_available / 100.0) * perc;
+
+for(i = 0 ; i < num-1 ; i++) {
+    putchar('=');
+}
+putchar('>');
+i++;
+
+for( ; i < char_available ; i++)
+    putchar(' ');
+
+}
+
+
+void parse_options(int argc, char *argv[])
+{
+static struct option long_options[] = {
+    {"version",  no_argument,       0, 'v'},
+    {"quiet",    no_argument,       0, 'q'},
+    {"help",     no_argument,       0, 'h'},
+    {"command",  required_argument, 0, 'c'},
+    {0, 0, 0, 0}
+};
+
+static char *options_string = "vqhc:";
+int c,i;
+int option_index = 0;
+
+while(1) {
+    c = getopt_long (argc, argv, options_string, long_options, &option_index);
+
+    // no more options
+    if (c == -1)
+        break;
+
+    switch(c) {
+        case 'v':
+            printf("cv version %s\n",CV_VERSION);
+            exit(EXIT_SUCCESS);
+            break;
+
+        case 'h':
+            printf("cv - Coreutils Viewer\n");
+            printf("---------------------\n");
+            printf("Shows running coreutils basic commands and displays stats.\n");
+            printf("Supported commands: ");
+            for(i = 0 ; proc_names[i] ; i++)
+                printf("%s ", proc_names[i]);
+            printf("\n");
+            printf("Usage: %s [-vqh] [-c command]\n",argv[0]);
+            printf("  -v --version          show version\n");
+            printf("  -q --quiet            hides some warning/error messages\n");
+            printf("  -h --help             this message\n");
+            printf("  -c --command          monitor only this command name (ex: firefox)\n");
+
+            exit(EXIT_SUCCESS);
+            break;
+
+        case 'q':
+            flag_quiet = 1;
+            break;
+
+        case 'c':
+            proc_specifiq = strdup(optarg);
+            break;
+
+        case '?':
+        default:
+            exit(EXIT_FAILURE);
+    }
+}
+
+if (optind < argc) {
+    fprintf(stderr,"Invalid arguments.\n");
+    exit(EXIT_FAILURE);
+}
+
+}
+
 // TODO: deal with --help
 
 int main(int argc, char *argv[])
@@ -203,20 +292,37 @@ int fdnum_list[MAX_FD_PER_PID];
 off_t max_size;
 char fsize[64];
 char fpos[64];
+struct winsize ws;
+float perc;
+
+parse_options(argc,argv);
+
+// ws.ws_row, ws.ws_col
+ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 
 pid_count = 0;
 
-for(i = 0 ; proc_names[i] ; i++) {
-    pid_count += find_pids_by_binary_name(proc_names[i],
+if(!proc_specifiq) {
+    for(i = 0 ; proc_names[i] ; i++) {
+        pid_count += find_pids_by_binary_name(proc_names[i],
+                                              pidinfo_list + pid_count,
+                                              MAX_PIDS - pid_count);
+        if(pid_count >= MAX_PIDS) {
+            fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+            break;
+        }
+    }
+} else {
+    pid_count += find_pids_by_binary_name(proc_specifiq,
                                           pidinfo_list + pid_count,
                                           MAX_PIDS - pid_count);
-    if(pid_count >= MAX_PIDS) {
-        fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
-        break;
-    }
 }
 
+
 if(!pid_count) {
+    if(flag_quiet)
+        return 0;
+
     fprintf(stderr,"No command currently running: ");
     for(i = 0 ; proc_names[i] ; i++) {
         fprintf(stderr,"%s, ", proc_names[i]);
@@ -233,6 +339,7 @@ for(i = 0 ; i < pid_count ; i++) {
     // let's find the biggest opened file
     for(j = 0 ; j < fd_count ; j++) {
         get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
+
         if(fdinfo.size > max_size) {
             biggest_fd = fdinfo;
             max_size = fdinfo.size;
@@ -240,7 +347,7 @@ for(i = 0 ; i < pid_count ; i++) {
     }
 
     if(!max_size) { // nothing found
-        printf("[%5d] %s inactive or flushing\n",
+        printf("[%5d] %s inactive/flushing/streaming/...\n",
                 pidinfo_list[i].pid,
                 pidinfo_list[i].name);
         continue;
@@ -249,14 +356,21 @@ for(i = 0 ; i < pid_count ; i++) {
     // We've our biggest_fd, now
     format_size(biggest_fd.pos, fpos);
     format_size(biggest_fd.size, fsize);
+    perc = ((double)100 / (double)biggest_fd.size) * (double)biggest_fd.pos;
 
     printf("[%5d] %s %s %.1f%% (%s / %s)\n",
         pidinfo_list[i].pid,
         pidinfo_list[i].name,
         biggest_fd.name,
-        ((double)100 / (double)biggest_fd.size) * (double)biggest_fd.pos,
+        perc,
         fpos,
         fsize);
+
+    // Need to work on window width when using screen/watch/...
+    //~ printf("    [");
+    //~ print_bar(perc, ws.ws_col-6);
+    //~ printf("]\n");
+
 }
 
 return 0;
