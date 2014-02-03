@@ -31,6 +31,11 @@
 
 #include <sys/ioctl.h>
 
+// for the BLKGETSIZE64 code section
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+
 #include "cv.h"
 #include "sizes.h"
 
@@ -126,8 +131,8 @@ while((direntp = readdir(proc)) != NULL) {
         continue;
     }
 
-    // if not a regular file ...
-    if(!S_ISREG(stat_buf.st_mode))
+    // if not a regular file or a block device
+    if(!S_ISREG(stat_buf.st_mode) && !S_ISBLK(stat_buf.st_mode))
         continue;
 
     // try to read link ...
@@ -178,11 +183,33 @@ if(stat(fd_info->name, &stat_buf) == -1) {
     return 0;
 }
 
-fd_info->size = stat_buf.st_size;
+if(S_ISBLK(stat_buf.st_mode)) {
+    int fd;
+
+    fd = open(fd_info->name, O_RDONLY);
+
+    if (fd < 0) {
+        perror("open (get_fdinfo)");
+        return 0;
+    }
+
+    if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
+        perror("ioctl (get_fdinfo)");
+        return 0;
+    }
+} else {
+    fd_info->size = stat_buf.st_size;
+}
+
 fd_info->pos = 0;
 
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fdinfo/%d", PROC_PATH, pid, fdnum);
 fp = fopen(fdpath, "rt");
+
+if(!fp) {
+    perror("fopen (get_fdinfo)");
+    return 0;
+}
 
 while(fgets(line, LINE_LEN - 1, fp) != NULL) {
     line[4]=0;
