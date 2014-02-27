@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <sys/param.h>
 
-#define CV_VERSION         "0.2"
+#define CV_VERSION         "0.3"
 
 #define PROC_PATH       "/proc"
 #define MAX_PIDS        32
