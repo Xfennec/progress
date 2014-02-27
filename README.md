@@ -8,10 +8,12 @@ This tool can be described as a **Tiny** Dirty Linux Only C command that looks
 for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip, cat, ...) currently
 running on your system and displays the percentage of copied data.
 
+It can now also display an estimated throughput (using -w flag).
+
 ![cv screenshot with cp and mv](https://raw.github.com/Xfennec/cv/master/capture.png)
 
-It's probably easy to add a progress bar, and with a bit more work, a "top-like"
-mode with estimated time and data throughput.
+It's probably easy to add a progress, show estimated time, and with a bit more work,
+provide a "top-like" mode with more accurate informations.
 
 How do you build it ?
 ---------------------
@@ -40,7 +42,7 @@ watch cv -q
 
 … see how your download is running:
 ```
-watch cv -c firefox
+watch cv -wc firefox
 ```
 
 … look at your Web server activity:
