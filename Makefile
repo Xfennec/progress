@@ -1,8 +1,9 @@
 OBJ=cv
+CFLAGS=-g -Wall -D_FILE_OFFSET_BITS=64
 $(OBJ) : cv.o sizes.o
 	gcc -Wall $^ -o $@
 %.o : %.c
-	gcc -g -Wall -c $^
+	gcc $(CFLAGS) -c $^
 clean :
 	rm -f *.o $(OBJ)
 install : $(OBJ)
