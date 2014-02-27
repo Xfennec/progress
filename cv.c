@@ -214,7 +214,7 @@ if(!fp) {
 while(fgets(line, LINE_LEN - 1, fp) != NULL) {
     line[4]=0;
     if(!strcmp(line, "pos:")) {
-        fd_info->pos = atol(line + 5);
+        fd_info->pos = atoll(line + 5);
         break;
     }
 }
