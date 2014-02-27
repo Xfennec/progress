@@ -42,6 +42,8 @@
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
 signed char flag_quiet = 0;
+signed char flag_throughput = 0;
+double throughput_wait_secs = 1;
 
 signed char is_numeric(char *str)
 {
@@ -166,6 +168,9 @@ char fdpath[MAXPATHLEN + 1];
 char line[LINE_LEN];
 ssize_t len;
 FILE *fp;
+struct timezone tz;
+
+fd_info->num = fdnum;
 
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fd/%d", PROC_PATH, pid, fdnum);
 
@@ -205,6 +210,7 @@ fd_info->pos = 0;
 
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fdinfo/%d", PROC_PATH, pid, fdnum);
 fp = fopen(fdpath, "rt");
+gettimeofday(&fd_info->tv, &tz);
 
 if(!fp) {
     perror("fopen (get_fdinfo)");
@@ -244,14 +250,16 @@ for( ; i < char_available ; i++)
 void parse_options(int argc, char *argv[])
 {
 static struct option long_options[] = {
-    {"version",  no_argument,       0, 'v'},
-    {"quiet",    no_argument,       0, 'q'},
-    {"help",     no_argument,       0, 'h'},
-    {"command",  required_argument, 0, 'c'},
+    {"version",    no_argument,       0, 'v'},
+    {"quiet",      no_argument,       0, 'q'},
+    {"wait",       no_argument,       0, 'w'},
+    {"wait-delay", required_argument, 0, 'W'},
+    {"help",       no_argument,       0, 'h'},
+    {"command",    required_argument, 0, 'c'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqhc:";
+static char *options_string = "vqwhc:W:";
 int c,i;
 int option_index = 0;
 
@@ -276,11 +284,13 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqh] [-c command]\n",argv[0]);
+            printf("Usage: %s [-vqwh] [-W] [-c command]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
+            printf("  -w --wait             estimate I/O throughput (slower display)\n");
+            printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -h --help             this message\n");
-            printf("  -c --command          monitor only this command name (ex: firefox)\n");
+            printf("  -c --command cmd      monitor only this command name (ex: firefox)\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -291,6 +301,15 @@ while(1) {
 
         case 'c':
             proc_specifiq = strdup(optarg);
+            break;
+
+        case 'w':
+            flag_throughput = 1;
+            break;
+
+        case 'W':
+            flag_throughput = 1;
+            throughput_wait_secs = atof(optarg);
             break;
 
         case '?':
@@ -310,7 +329,7 @@ if (optind < argc) {
 
 int main(int argc, char *argv[])
 {
-int pid_count, fd_count;
+int pid_count, fd_count, result_count;
 int i,j;
 pidinfo_t pidinfo_list[MAX_PIDS];
 fdinfo_t fdinfo;
@@ -319,8 +338,11 @@ int fdnum_list[MAX_FD_PER_PID];
 off_t max_size;
 char fsize[64];
 char fpos[64];
+char ftroughput[64];
 struct winsize ws;
 float perc;
+result_t results[MAX_RESULTS];
+signed char still_there;
 
 parse_options(argc,argv);
 
@@ -358,6 +380,8 @@ if(!pid_count) {
     return 0;
 }
 
+result_count = 0;
+
 for(i = 0 ; i < pid_count ; i++) {
     fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
 
@@ -380,18 +404,62 @@ for(i = 0 ; i < pid_count ; i++) {
         continue;
     }
 
-    // We've our biggest_fd, now
-    format_size(biggest_fd.pos, fpos);
-    format_size(biggest_fd.size, fsize);
-    perc = ((double)100 / (double)biggest_fd.size) * (double)biggest_fd.pos;
+    // We've our biggest_fd now, let's store the result
+    results[result_count].pid = pidinfo_list[i];
+    results[result_count].fd = biggest_fd;
 
-    printf("[%5d] %s %s %.1f%% (%s / %s)\n",
-        pidinfo_list[i].pid,
-        pidinfo_list[i].name,
-        biggest_fd.name,
+    result_count++;
+}
+
+// wait a bit, so we can estimate the throughput
+if (flag_throughput)
+    usleep(1000000 * throughput_wait_secs);
+
+for (i = 0 ; i < result_count ; i++) {
+
+    if (flag_throughput)
+        still_there = get_fdinfo(results[i].pid.pid, results[i].fd.num, &fdinfo);
+    else
+        still_there = 0;
+
+    if (!still_there) {
+        // pid is no more here (or no throughput was asked), use initial info
+        format_size(results[i].fd.pos, fpos);
+        format_size(results[i].fd.size, fsize);
+        perc = ((double)100 / (double)results[i].fd.size) * (double)results[i].fd.pos;
+    } else {
+        // use the newest info
+        format_size(fdinfo.pos, fpos);
+        format_size(fdinfo.size, fsize);
+        perc = ((double)100 / (double)fdinfo.size) * (double)fdinfo.pos;
+
+    }
+
+    printf("[%5d] %s %s %.1f%% (%s / %s)",
+        results[i].pid.pid,
+        results[i].pid.name,
+        results[i].fd.name,
         perc,
         fpos,
         fsize);
+
+    if (flag_throughput && still_there) {
+        // results[i] vs fdinfo
+        long long usec_diff;
+        off_t byte_diff;
+        off_t bytes_per_sec;
+
+        usec_diff =   (fdinfo.tv.tv_sec  - results[i].fd.tv.tv_sec) * 1000000L
+                    + (fdinfo.tv.tv_usec - results[i].fd.tv.tv_usec);
+        byte_diff = fdinfo.pos - results[i].fd.pos;
+        bytes_per_sec = byte_diff / (usec_diff / 1000000.0);
+
+        format_size(bytes_per_sec, ftroughput);
+        printf(" %s/s", ftroughput);
+    }
+
+
+    printf("\n");
 
     // Need to work on window width when using screen/watch/...
     //~ printf("    [");
