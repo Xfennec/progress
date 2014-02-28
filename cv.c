@@ -417,9 +417,11 @@ if (flag_throughput)
 
 for (i = 0 ; i < result_count ; i++) {
 
-    if (flag_throughput)
+    if (flag_throughput) {
         still_there = get_fdinfo(results[i].pid.pid, results[i].fd.num, &fdinfo);
-    else
+        if (still_there && strcmp(results[i].fd.name, fdinfo.name))
+            still_there = 0; // still there, but it's not the same file !
+    } else
         still_there = 0;
 
     if (!still_there) {
