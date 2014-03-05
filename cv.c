@@ -77,7 +77,8 @@ while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
 
     if(stat(fullpath_dir, &stat_buf) == -1) {
-        perror("stat (find_pids_by_binary_name)");
+        if (!flag_quiet)
+            perror("stat (find_pids_by_binary_name)");
         continue;
     }
 
@@ -129,7 +130,8 @@ if(!proc) {
 while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
     if(stat(fullpath, &stat_buf) == -1) {
-        perror("stat (find_fd_for_pid)");
+        if (!flag_quiet)
+            perror("stat (find_fd_for_pid)");
         continue;
     }
 
@@ -184,7 +186,8 @@ else {
 
 if(stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
-    perror("stat (get_fdinfo)");
+    if (!flag_quiet)
+        perror("stat (get_fdinfo)");
     return 0;
 }
 
@@ -194,12 +197,14 @@ if(S_ISBLK(stat_buf.st_mode)) {
     fd = open(fd_info->name, O_RDONLY);
 
     if (fd < 0) {
-        perror("open (get_fdinfo)");
+        if (!flag_quiet)
+            perror("open (get_fdinfo)");
         return 0;
     }
 
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
-        perror("ioctl (get_fdinfo)");
+        if (!flag_quiet)
+            perror("ioctl (get_fdinfo)");
         return 0;
     }
 } else {
@@ -213,7 +218,8 @@ fp = fopen(fdpath, "rt");
 gettimeofday(&fd_info->tv, &tz);
 
 if(!fp) {
-    perror("fopen (get_fdinfo)");
+    if (!flag_quiet)
+        perror("fopen (get_fdinfo)");
     return 0;
 }
 
