@@ -65,7 +65,7 @@ char fullpath_dir[MAXPATHLEN + 1];
 char fullpath_exe[MAXPATHLEN + 1];
 char exe[MAXPATHLEN + 1];
 ssize_t len;
-int pid_count=0;
+int pid_count=0, cmdlfd=-1;
 
 proc=opendir(PROC_PATH);
 if(!proc) {
@@ -100,6 +100,33 @@ while((direntp = readdir(proc)) != NULL) {
             pid_count++;
             if(pid_count==max_pids)
                 break;
+            continue;
+        }
+
+        // In case the binary name is different then $0
+        snprintf(fullpath_exe, MAXPATHLEN, "%s/cmdline", fullpath_dir);
+        cmdlfd = open(fullpath_exe, O_RDONLY);
+        if (cmdlfd < 0) {
+            // Will be mostly "Permission denied"
+            //~ perror("open");
+        } else {
+            len = read(cmdlfd, exe, MAXPATHLEN);
+            if (len < 0) {
+                perror("read");
+                close(cmdlfd);
+            } else {
+                exe[len]=0;
+                close(cmdlfd);
+
+                if (!strcmp(basename(exe), bin_name)) {
+                    pid_list[pid_count].pid=atol(direntp->d_name);
+                    strcpy(pid_list[pid_count].name, bin_name);
+                    pid_count++;
+                    if(pid_count==max_pids)
+                        break;
+                    continue;
+                }
+            }
         }
     }
 }
