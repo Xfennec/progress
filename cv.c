@@ -79,7 +79,7 @@ while((direntp = readdir(proc)) != NULL) {
 
     if(stat(fullpath_dir, &stat_buf) == -1) {
         if (!flag_quiet)
-            perror("stat (find_pids_by_binary_name)");
+            fprintf(stderr, "stat (find_pids_by_binary_name): %s: %s\n", strerror(errno), fullpath_dir);
         continue;
     }
 
@@ -114,7 +114,7 @@ while((direntp = readdir(proc)) != NULL) {
         } else {
             len = read(cmdlfd, exe, MAXPATHLEN);
             if (len < 0) {
-                perror("read");
+                fprintf(stderr, "read: %s: %s\n", strerror(errno), fullpath_exe);
                 close(cmdlfd);
             } else {
                 exe[len]=0;
@@ -152,8 +152,7 @@ snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
 
 proc=opendir(path_dir);
 if(!proc) {
-    perror("opendir");
-    fprintf(stderr,"Can't open %s\n",path_dir);
+    fprintf(stderr, "opendir: %s: %s\n", strerror(errno), path_dir);
     return 0;
 }
 
@@ -161,7 +160,7 @@ while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
     if(stat(fullpath, &stat_buf) == -1) {
         if (!flag_quiet)
-            perror("stat (find_fd_for_pid)");
+            fprintf(stderr, "stat (find_fd_for_pid): %s: %s\n", strerror(errno), fullpath);
         continue;
     }
 
@@ -218,7 +217,7 @@ else {
 if(stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
     if (!flag_quiet)
-        perror("stat (get_fdinfo)");
+        fprintf(stderr, "stat (get_fdinfo): %s: %s\n", strerror(errno), fd_info->name);
     return 0;
 }
 
@@ -229,13 +228,13 @@ if(S_ISBLK(stat_buf.st_mode)) {
 
     if (fd < 0) {
         if (!flag_quiet)
-            perror("open (get_fdinfo)");
+            fprintf(stderr, "open (get_fdinfo): %s: %s\n", strerror(errno), fd_info->name);
         return 0;
     }
 
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
         if (!flag_quiet)
-            perror("ioctl (get_fdinfo)");
+            fprintf(stderr, "ioctl (get_fdinfo): %s: %s\n", strerror(errno), fd_info->name);
         return 0;
     }
 } else {
@@ -250,7 +249,7 @@ gettimeofday(&fd_info->tv, &tz);
 
 if(!fp) {
     if (!flag_quiet)
-        perror("fopen (get_fdinfo)");
+        fprintf(stderr, "fopen (get_fdinfo): %s: %s\n", strerror(errno), fdpath);
     return 0;
 }
 
