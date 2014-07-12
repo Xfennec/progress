@@ -42,7 +42,7 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
-signed char flag_quiet = 0;
+signed char flag_quiet = 0, flag_verbose = 0;
 signed char flag_throughput = 0;
 double throughput_wait_secs = 1;
 
@@ -89,8 +89,9 @@ while((direntp = readdir(proc)) != NULL) {
         if(len != -1)
             exe[len] = 0;
         else {
-            // Will be mostly "Permission denied"
-            //~ perror("readlink");
+            if (flag_verbose)
+                // Will be mostly "Permission denied"
+                fprintf(stderr, "readlink: %s: %s\n", strerror(errno), fullpath_exe);
             continue;
         }
 
@@ -108,7 +109,8 @@ while((direntp = readdir(proc)) != NULL) {
         cmdlfd = open(fullpath_exe, O_RDONLY);
         if (cmdlfd < 0) {
             // Will be mostly "Permission denied"
-            //~ perror("open");
+            if (flag_verbose)
+                fprintf(stderr, "open: %s: %s\n", strerror(errno), fullpath_exe);
         } else {
             len = read(cmdlfd, exe, MAXPATHLEN);
             if (len < 0) {
@@ -208,7 +210,8 @@ len=readlink(fdpath, fd_info->name, MAXPATHLEN);
 if(len != -1)
     fd_info->name[len] = 0;
 else {
-    //~ perror("readlink");
+    if (flag_verbose)
+        fprintf(stderr, "readlink: %s: %s\n", strerror(errno), fdpath);
     return 0;
 }
 
@@ -286,6 +289,7 @@ void parse_options(int argc, char *argv[])
 static struct option long_options[] = {
     {"version",    no_argument,       0, 'v'},
     {"quiet",      no_argument,       0, 'q'},
+    {"verbose",    no_argument,       0, 'V'},
     {"wait",       no_argument,       0, 'w'},
     {"wait-delay", required_argument, 0, 'W'},
     {"help",       no_argument,       0, 'h'},
@@ -293,7 +297,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqwhc:W:";
+static char *options_string = "vqVwhc:W:";
 int c,i;
 int option_index = 0;
 
@@ -318,9 +322,10 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqwh] [-W] [-c command]\n",argv[0]);
+            printf("Usage: %s [-vqVwh] [-W] [-c command]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
+            printf("  -V --verbose          print non-exceptional errors (eg permission denied)\n");
             printf("  -w --wait             estimate I/O throughput and ETA (slower display)\n");
             printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -h --help             this message\n");
@@ -331,6 +336,10 @@ while(1) {
 
         case 'q':
             flag_quiet = 1;
+            break;
+
+        case 'V':
+            flag_verbose = 1;
             break;
 
         case 'c':
