@@ -1,5 +1,9 @@
 OBJ=cv
 CFLAGS=-g -Wall -D_FILE_OFFSET_BITS=64
+
+PREFIX = $(DESTDIR)/usr/local
+BINDIR = $(PREFIX)/bin
+
 $(OBJ) : cv.o sizes.o
 	gcc -Wall $^ -o $@
 %.o : %.c
@@ -7,6 +11,6 @@ $(OBJ) : cv.o sizes.o
 clean :
 	rm -f *.o $(OBJ)
 install : $(OBJ)
-	@echo "Trying /usr/local/bin/ and ~/bin/ ..."
-	install -m 0755 $(OBJ) /usr/local/bin/ || \
-	install -m 0755 $(OBJ) ~/bin
+	@echo "Installing to $(BINDIR) ..."
+	@install -m 0755 $(OBJ) $(BINDIR)/$(TARGET) || \
+	echo "Failed. Try "make PREFIX=~ install" ?"
