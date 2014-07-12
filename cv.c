@@ -43,7 +43,7 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
-signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0;
+signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0;
 signed char flag_throughput = 0;
 double throughput_wait_secs = 1;
 
@@ -67,6 +67,7 @@ char fullpath_exe[MAXPATHLEN + 1];
 char exe[MAXPATHLEN + 1];
 ssize_t len;
 int pid_count=0, cmdlfd=-1, res=-1;
+char *pnext=NULL;
 
 proc=opendir(PROC_PATH);
 if(!proc) {
@@ -126,13 +127,33 @@ while((direntp = readdir(proc)) != NULL) {
                 exe[len]=0;
                 close(cmdlfd);
 
+                if (flag_full) {
+                    // cmdline is null seperated, convert to spaces for
+                    // fnmatch.
+                    pnext = exe;
+                    while (pnext && pnext < exe+len-1) {
+                        pnext = strchr(pnext, '\0');
+                        if (pnext) *pnext = ' ';
+                    }
+                    pnext = exe;
+                } else {
+                    pnext = basename(exe);
+                }
+
                 res=-1;
                 if (flag_glob)
-                    res = fnmatch(bin_name, basename(exe), FNM_PATHNAME|FNM_PERIOD);
+                    res = fnmatch(bin_name, pnext, FNM_PERIOD);
                 else
-                    res = strcmp(basename(exe), bin_name);
+                    res = strcmp(pnext, bin_name);
                 if(res==0) {
                     pid_list[pid_count].pid=atol(direntp->d_name);
+
+                    if (flag_full) {
+                        // re-null terminate so basename doesn't get
+                        // confused.
+                        pnext = strchr(exe, ' ');
+                        if (pnext) *pnext = 0;
+                    }
                     strcpy(pid_list[pid_count].name, basename(exe));
                     pid_count++;
                     if(pid_count==max_pids)
@@ -305,10 +326,11 @@ static struct option long_options[] = {
     {"help",       no_argument,       0, 'h'},
     {"command",    required_argument, 0, 'c'},
     {"glob",       no_argument,       0, 'g'},
+    {"full",       no_argument,       0, 'f'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqVwhc:W:g";
+static char *options_string = "vqVwhc:W:gf";
 int c,i;
 int option_index = 0;
 
@@ -333,7 +355,7 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqVwhg] [-W] [-c command]\n",argv[0]);
+            printf("Usage: %s [-vqVwhgf] [-W] [-c command]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
             printf("  -V --verbose          print non-exceptional errors (eg permission denied)\n");
@@ -342,6 +364,8 @@ while(1) {
             printf("  -h --help             this message\n");
             printf("  -c --command cmd      monitor only these commands name (ex: firefox,wget)\n");
             printf("  -g --glob             use fnmatch() when matching process names instead of strcmp()\n");
+            printf("  -f --full             match against the entire command line instead of just the command name, implies --glob\n");
+            printf("                        Note that this is an exact match, use -g and \\*pattern\\* to get a substring match\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -368,6 +392,15 @@ while(1) {
             break;
 
         case 'g':
+            flag_glob = 1;
+            break;
+
+        case 'f':
+            flag_full = 1;
+            // Since we are doing an exact match --full isn't useful without
+            // --glob so imply it for now. Note that this doesn't enable
+            // substring match, the user still needs to wrap their search
+            // string in asterisks.
             flag_glob = 1;
             break;
 
