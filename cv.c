@@ -324,7 +324,7 @@ while(1) {
             printf("  -w --wait             estimate I/O throughput and ETA (slower display)\n");
             printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -h --help             this message\n");
-            printf("  -c --command cmd      monitor only this command name (ex: firefox)\n");
+            printf("  -c --command cmd      monitor only these commands name (ex: firefox,wget)\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -387,6 +387,7 @@ struct winsize ws;
 float perc;
 result_t results[MAX_RESULTS];
 signed char still_there;
+char *pnext=NULL;
 
 parse_options(argc,argv);
 
@@ -406,9 +407,21 @@ if(!proc_specifiq) {
         }
     }
 } else {
-    pid_count += find_pids_by_binary_name(proc_specifiq,
-                                          pidinfo_list + pid_count,
-                                          MAX_PIDS - pid_count);
+    //split on comma.
+    while (proc_specifiq) {
+        pnext = strchr(proc_specifiq, ',');
+        if (pnext) *pnext = 0;
+        pid_count += find_pids_by_binary_name(proc_specifiq,
+                                              pidinfo_list + pid_count,
+                                              MAX_PIDS - pid_count);
+        if (!pnext) break;
+        proc_specifiq = pnext+1;
+
+        if(pid_count >= MAX_PIDS) {
+            fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+            break;
+        }
+    }
 }
 
 
