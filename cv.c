@@ -43,7 +43,8 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
-signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0;
+signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0,
+            flag_icase = 0;
 signed char flag_throughput = 0;
 double throughput_wait_secs = 1;
 
@@ -97,6 +98,10 @@ while((direntp = readdir(proc)) != NULL) {
             continue;
         }
 
+        if (flag_icase)
+            for (pnext=exe; pnext<exe+len-1; pnext++)
+                *pnext=tolower(*pnext);
+
         res=-1;
         if (flag_glob)
             res = fnmatch(bin_name, basename(exe), FNM_PATHNAME|FNM_PERIOD);
@@ -126,6 +131,10 @@ while((direntp = readdir(proc)) != NULL) {
             } else {
                 exe[len]=0;
                 close(cmdlfd);
+
+                if (flag_icase)
+                    for (pnext=exe; pnext<exe+len-1; pnext++)
+                        *pnext=tolower(*pnext);
 
                 if (flag_full) {
                     // cmdline is null seperated, convert to spaces for
@@ -327,10 +336,11 @@ static struct option long_options[] = {
     {"command",    required_argument, 0, 'c'},
     {"glob",       no_argument,       0, 'g'},
     {"full",       no_argument,       0, 'f'},
+    {"case-insensitively",no_argument,0, 'i'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqVwhc:W:gf";
+static char *options_string = "vqVwhc:W:gfi";
 int c,i;
 int option_index = 0;
 
@@ -355,7 +365,7 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqVwhgf] [-W] [-c command]\n",argv[0]);
+            printf("Usage: %s [-vqVwhgfi] [-W] [-c command]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
             printf("  -V --verbose          print non-exceptional errors (eg permission denied)\n");
@@ -366,6 +376,7 @@ while(1) {
             printf("  -g --glob             use fnmatch() when matching process names instead of strcmp()\n");
             printf("  -f --full             match against the entire command line instead of just the command name, implies --glob\n");
             printf("                        Note that this is an exact match, use -g and \\*pattern\\* to get a substring match\n");
+            printf("  -i --case-insensitive match case insensitively\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -402,6 +413,10 @@ while(1) {
             // substring match, the user still needs to wrap their search
             // string in asterisks.
             flag_glob = 1;
+            break;
+
+        case 'i':
+            flag_icase = 1;
             break;
 
         case '?':
@@ -467,6 +482,10 @@ if(!proc_specifiq) {
 } else {
     //split on comma.
     while (proc_specifiq) {
+        if (flag_icase)
+            for (pnext=proc_specifiq; *pnext; pnext++)
+                *pnext=tolower(*pnext);
+
         pnext = strchr(proc_specifiq, ',');
         if (pnext) *pnext = 0;
         pid_count += find_pids_by_binary_name(proc_specifiq,
