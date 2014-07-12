@@ -65,3 +65,24 @@ directories to find opened files and seek position, and reports status for
 the biggest file.
 
 It's very light, and compatible with virtually any command.
+
+Alternatives
+------------
+
+* [pycp](https://github.com/yannicklm/pycp)
+  cp and mv with a progress bar (re-implementation in python).
+
+* rsync --progress or -P
+
+* kill -s USR1 `pidof dd`
+
+* SIGINFO (ctrl+t) on OS X and BSDs
+
+* pv plus tar
+
+* Patched coreutils like [advanced
+  copy](http://www.zwicke.org/web/advancedcopy.html) or
+  [gcp](http://wiki.goffi.org/wiki/Gcp/en).
+
+* [strace](https://chris-lamb.co.uk/posts/can-you-get-cp-to-give-a-progress-bar-like-wget)
+
