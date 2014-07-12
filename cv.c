@@ -22,6 +22,7 @@
 
 #include <unistd.h>
 #include <dirent.h>
+#include <fnmatch.h>
 #include <errno.h>
 #include <limits.h>
 #include <ctype.h>
@@ -42,7 +43,7 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
-signed char flag_quiet = 0, flag_verbose = 0;
+signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0;
 signed char flag_throughput = 0;
 double throughput_wait_secs = 1;
 
@@ -65,7 +66,7 @@ char fullpath_dir[MAXPATHLEN + 1];
 char fullpath_exe[MAXPATHLEN + 1];
 char exe[MAXPATHLEN + 1];
 ssize_t len;
-int pid_count=0, cmdlfd=-1;
+int pid_count=0, cmdlfd=-1, res=-1;
 
 proc=opendir(PROC_PATH);
 if(!proc) {
@@ -95,9 +96,14 @@ while((direntp = readdir(proc)) != NULL) {
             continue;
         }
 
-        if(!strcmp(basename(exe), bin_name)) {
+        res=-1;
+        if (flag_glob)
+            res = fnmatch(bin_name, basename(exe), FNM_PATHNAME|FNM_PERIOD);
+        else
+            res = strcmp(basename(exe), bin_name);
+        if(res==0) {
             pid_list[pid_count].pid=atol(direntp->d_name);
-            strcpy(pid_list[pid_count].name, bin_name);
+            strcpy(pid_list[pid_count].name, basename(exe));
             pid_count++;
             if(pid_count==max_pids)
                 break;
@@ -120,9 +126,14 @@ while((direntp = readdir(proc)) != NULL) {
                 exe[len]=0;
                 close(cmdlfd);
 
-                if (!strcmp(basename(exe), bin_name)) {
+                res=-1;
+                if (flag_glob)
+                    res = fnmatch(bin_name, basename(exe), FNM_PATHNAME|FNM_PERIOD);
+                else
+                    res = strcmp(basename(exe), bin_name);
+                if(res==0) {
                     pid_list[pid_count].pid=atol(direntp->d_name);
-                    strcpy(pid_list[pid_count].name, bin_name);
+                    strcpy(pid_list[pid_count].name, basename(exe));
                     pid_count++;
                     if(pid_count==max_pids)
                         break;
@@ -293,10 +304,11 @@ static struct option long_options[] = {
     {"wait-delay", required_argument, 0, 'W'},
     {"help",       no_argument,       0, 'h'},
     {"command",    required_argument, 0, 'c'},
+    {"glob",       no_argument,       0, 'g'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqVwhc:W:";
+static char *options_string = "vqVwhc:W:g";
 int c,i;
 int option_index = 0;
 
@@ -321,7 +333,7 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqVwh] [-W] [-c command]\n",argv[0]);
+            printf("Usage: %s [-vqVwhg] [-W] [-c command]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
             printf("  -V --verbose          print non-exceptional errors (eg permission denied)\n");
@@ -329,6 +341,7 @@ while(1) {
             printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -h --help             this message\n");
             printf("  -c --command cmd      monitor only these commands name (ex: firefox,wget)\n");
+            printf("  -g --glob             use fnmatch() when matching process names instead of strcmp()\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -352,6 +365,10 @@ while(1) {
         case 'W':
             flag_throughput = 1;
             throughput_wait_secs = atof(optarg);
+            break;
+
+        case 'g':
+            flag_glob = 1;
             break;
 
         case '?':
