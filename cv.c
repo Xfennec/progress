@@ -461,7 +461,7 @@ while(1) {
             break;
 
         case 'S':
-            size_filter = atoi(optarg);
+            size_filter = htob(optarg);
             break;
 
         case '?':

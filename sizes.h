@@ -7,5 +7,6 @@
 #include <string.h>
 
 void format_size(uint64_t size, char *result);
+long long htob(char *src);
 
 #endif
