@@ -236,7 +236,12 @@ while((direntp = readdir(proc)) != NULL) {
         count++;
     } else {
         for (i=0; i < num_dirs; i++) {
-            if (strstr(link_dest, dir_names[i]) == link_dest) {
+            if (realpath(dir_names[i], fullpath) == NULL) {
+                if (flag_verbose)
+                    fprintf(stderr, "realpath: %s: %s\n", strerror(errno), dir_names[i]);
+                continue;
+            }
+            if (strstr(link_dest, fullpath) == link_dest) {
                 if (fd_list) {
                     fd_list[count] = atoi(direntp->d_name);
                     if(count == max_fd) break;
@@ -245,7 +250,7 @@ while((direntp = readdir(proc)) != NULL) {
             }
         }
     }
-    //~ printf("[debug] %s\n",fullpath);
+    //~ printf("[debug] %s\n",link_dest);
     if(fd_list && count == max_fd)
         break;
 }
