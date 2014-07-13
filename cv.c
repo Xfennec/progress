@@ -48,8 +48,9 @@ signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0,
             flag_icase = 0;
 signed char flag_throughput = 0;
 double throughput_wait_secs = 1;
+long long size_filter = -1;
 
-int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd, char **dir_names, int num_dirs);
+int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd, char **dir_names, int num_dirs, long long min_size);
 
 signed char is_numeric(char *str)
 {
@@ -63,7 +64,7 @@ return 1;
 
 int find_pids_by_binary_name(char **bin_names, int num_names, 
                              char **dir_names, int num_dirs,
-                             pidinfo_t *pid_list, int max_pids)
+                             pidinfo_t *pid_list, int max_pids, long long min_size)
 {
 DIR *proc;
 struct dirent *direntp;
@@ -118,7 +119,7 @@ while((direntp = readdir(proc)) != NULL) {
                 pid_list[pid_count].pid=atol(direntp->d_name);
                 strcpy(pid_list[pid_count].name, basename(exe));
 
-                if (num_dirs == 0 || find_fd_for_pid(pid_list[pid_count].pid, NULL, 0, dir_names, num_dirs) > 0)
+                if ((num_dirs <= 0 && min_size <= 0) || find_fd_for_pid(pid_list[pid_count].pid, NULL, 0, dir_names, num_dirs, min_size) > 0)
                     pid_count++;
 
                 if(pid_count==max_pids) goto leave;
@@ -173,7 +174,10 @@ while((direntp = readdir(proc)) != NULL) {
                             if (pnext) *pnext = 0;
                         }
                         strcpy(pid_list[pid_count].name, basename(exe));
-                        pid_count++;
+
+                        if ((num_dirs <= 0 && min_size <= 0) || find_fd_for_pid(pid_list[pid_count].pid, NULL, 0, dir_names, num_dirs, min_size) > 0)
+                            pid_count++;
+
                         if(pid_count==max_pids) goto leave;
                         continue;
                     }
@@ -188,7 +192,7 @@ closedir(proc);
 return pid_count;
 }
 
-int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd, char **dir_names, int num_dirs)
+int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd, char **dir_names, int num_dirs, long long min_size)
 {
 DIR *proc;
 struct dirent *direntp;
@@ -229,6 +233,8 @@ while((direntp = readdir(proc)) != NULL) {
     // try to stat link target (invalid link ?)
     if(stat(link_dest, &stat_buf) == -1)
         continue;
+
+    if (min_size > 0 && stat_buf.st_size < min_size) continue;
 
     // OK, we've found a potential interesting file.
     if (num_dirs == 0) {
@@ -365,10 +371,11 @@ static struct option long_options[] = {
     {"full",       no_argument,       0, 'f'},
     {"case-insensitively",no_argument,0, 'i'},
     {"directory",  required_argument, 0, 'D'},
+    {"size",       required_argument, 0, 'S'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqVwhc:W:gfiD:";
+static char *options_string = "vqVwhc:W:gfiD:S:";
 int c,i;
 int option_index = 0;
 
@@ -393,7 +400,7 @@ while(1) {
             for(i = 0 ; i < sizeof(proc_names)/sizeof(proc_names[0]); i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqVwhgfi] [-W] [-c command] [-D dir]\n",argv[0]);
+            printf("Usage: %s [-vqVwhgfi] [-W] [-c command] [-D dir] [-S bytes]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
             printf("  -V --verbose          print non-exceptional errors (eg permission denied)\n");
@@ -406,6 +413,7 @@ while(1) {
             printf("                        Note that this is an exact match, use -g and \\*pattern\\* to get a substring match\n");
             printf("  -i --case-insensitive match case insensitively\n");
             printf("  -D --directory dir    filter results to processes handling files in dir, comma separated\n");
+            printf("  -S --size bytes       filter results to processes handling files larger than bytes\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -450,6 +458,10 @@ while(1) {
 
         case 'D':
             dir_filter = optarg;
+            break;
+
+        case 'S':
+            size_filter = atoi(optarg);
             break;
 
         case '?':
@@ -536,7 +548,7 @@ if(!proc_specifiq) {
                                           sizeof(proc_names)/sizeof(proc_names[0]),
                                           dir_names, num_dirs,
                                           pidinfo_list,
-                                          MAX_PIDS);
+                                          MAX_PIDS, size_filter);
     if(pid_count >= MAX_PIDS) {
         fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
     }
@@ -547,7 +559,7 @@ if(!proc_specifiq) {
     pid_count = find_pids_by_binary_name(specifiq_batch, i,
                                           dir_names, num_dirs,
                                           pidinfo_list,
-                                          MAX_PIDS);
+                                          MAX_PIDS, size_filter);
 
     if(pid_count >= MAX_PIDS) {
         fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
@@ -576,7 +588,7 @@ if(!pid_count) {
 result_count = 0;
 
 for(i = 0 ; i < pid_count ; i++) {
-    fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID, dir_names, num_dirs);
+    fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID, dir_names, num_dirs, size_filter);
 
     max_size = 0;
 
