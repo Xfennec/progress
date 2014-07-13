@@ -1,15 +1,12 @@
 OBJ=cv
-CFLAGS=-g -Wall -D_FILE_OFFSET_BITS=64
-ifdef BUILD_DAEMON
-	CFLAGS += -DBUILD_DAEMON $(pkg-config --cflags --libs libnotify)
-endif
+CFLAGS = -g -Wall -D_FILE_OFFSET_BITS=64 -std=gnu99
+CFLAGS += -DBUILD_DAEMON=1
+CFLAGS += $(shell pkg-config --cflags --libs libnotify glib)
 PREFIX = $(DESTDIR)/usr/local
 BINDIR = $(PREFIX)/bin
 
-$(OBJ) : cv.o sizes.o
-	gcc -Wall $^ -o $@
-%.o : %.c
-	gcc $(CFLAGS) -c $^
+$(OBJ) : cv.c sizes.c
+	gcc $(CFLAGS) $^ -o $@
 clean :
 	rm -f *.o $(OBJ)
 install : $(OBJ)
