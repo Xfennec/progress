@@ -43,6 +43,7 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort"};
 char *proc_specifiq = NULL;
+char *dir_filter = NULL;
 signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0,
             flag_icase = 0;
 signed char flag_throughput = 0;
@@ -339,10 +340,11 @@ static struct option long_options[] = {
     {"glob",       no_argument,       0, 'g'},
     {"full",       no_argument,       0, 'f'},
     {"case-insensitively",no_argument,0, 'i'},
+    {"directory",  required_argument, 0, 'D'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqVwhc:W:gfi";
+static char *options_string = "vqVwhc:W:gfiD:";
 int c,i;
 int option_index = 0;
 
@@ -367,7 +369,7 @@ while(1) {
             for(i = 0 ; i < sizeof(proc_names)/sizeof(proc_names[0]); i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqVwhgfi] [-W] [-c command]\n",argv[0]);
+            printf("Usage: %s [-vqVwhgfi] [-W] [-c command] [-D dir]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
             printf("  -V --verbose          print non-exceptional errors (eg permission denied)\n");
@@ -379,6 +381,7 @@ while(1) {
             printf("  -f --full             match against the entire command line instead of just the command name, implies --glob\n");
             printf("                        Note that this is an exact match, use -g and \\*pattern\\* to get a substring match\n");
             printf("  -i --case-insensitive match case insensitively\n");
+            printf("  -D --directory dir    filter results to processes handling files in dir, comma separated\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -419,6 +422,10 @@ while(1) {
 
         case 'i':
             flag_icase = 1;
+            break;
+
+        case 'D':
+            dir_filter = optarg;
             break;
 
         case '?':
@@ -485,6 +492,8 @@ float perc;
 result_t results[MAX_RESULTS];
 char *specifiq_batch[MAX_PIDS];
 signed char still_there;
+char *dir_names[MAX_PIDS];
+int num_dirs=0;
 
 parse_options(argc,argv);
 
@@ -492,6 +501,11 @@ parse_options(argc,argv);
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 
 pid_count = 0;
+
+if (dir_filter) {
+    num_dirs = split(dir_names, sizeof(dir_names)/sizeof(dir_names[0]),
+                     dir_filter, ',');
+}
 
 if(!proc_specifiq) {
     pid_count = find_pids_by_binary_name(proc_names,
