@@ -49,6 +49,8 @@ signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0,
 signed char flag_throughput = 0;
 double throughput_wait_secs = 1;
 
+int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd, char **dir_names, int num_dirs);
+
 signed char is_numeric(char *str)
 {
 while(*str) {
@@ -59,7 +61,9 @@ while(*str) {
 return 1;
 }
 
-int find_pids_by_binary_name(char **bin_names, int num_names, pidinfo_t *pid_list, int max_pids)
+int find_pids_by_binary_name(char **bin_names, int num_names, 
+                             char **dir_names, int num_dirs,
+                             pidinfo_t *pid_list, int max_pids)
 {
 DIR *proc;
 struct dirent *direntp;
@@ -113,7 +117,10 @@ while((direntp = readdir(proc)) != NULL) {
             if(res==0) {
                 pid_list[pid_count].pid=atol(direntp->d_name);
                 strcpy(pid_list[pid_count].name, basename(exe));
-                pid_count++;
+
+                if (num_dirs == 0 || find_fd_for_pid(pid_list[pid_count].pid, NULL, 0, dir_names, num_dirs) > 0)
+                    pid_count++;
+
                 if(pid_count==max_pids) goto leave;
                 continue;
             }
@@ -181,7 +188,7 @@ closedir(proc);
 return pid_count;
 }
 
-int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
+int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd, char **dir_names, int num_dirs)
 {
 DIR *proc;
 struct dirent *direntp;
@@ -189,7 +196,7 @@ char path_dir[MAXPATHLEN + 1];
 char fullpath[MAXPATHLEN + 1];
 char link_dest[MAXPATHLEN + 1];
 struct stat stat_buf;
-int count = 0;
+int count = 0, i = 0;
 ssize_t len;
 
 snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
@@ -224,10 +231,22 @@ while((direntp = readdir(proc)) != NULL) {
         continue;
 
     // OK, we've found a potential interesting file.
-
-    fd_list[count++] = atoi(direntp->d_name);
+    if (num_dirs == 0) {
+        if (fd_list) fd_list[count] = atoi(direntp->d_name);
+        count++;
+    } else {
+        for (i=0; i < num_dirs; i++) {
+            if (strstr(link_dest, dir_names[i]) == link_dest) {
+                if (fd_list) {
+                    fd_list[count] = atoi(direntp->d_name);
+                    if(count == max_fd) break;
+                }
+                count++;
+            }
+        }
+    }
     //~ printf("[debug] %s\n",fullpath);
-    if(count == max_fd)
+    if(fd_list && count == max_fd)
         break;
 }
 
@@ -510,6 +529,7 @@ if (dir_filter) {
 if(!proc_specifiq) {
     pid_count = find_pids_by_binary_name(proc_names,
                                           sizeof(proc_names)/sizeof(proc_names[0]),
+                                          dir_names, num_dirs,
                                           pidinfo_list,
                                           MAX_PIDS);
     if(pid_count >= MAX_PIDS) {
@@ -520,6 +540,7 @@ if(!proc_specifiq) {
               proc_specifiq, ',');
 
     pid_count = find_pids_by_binary_name(specifiq_batch, i,
+                                          dir_names, num_dirs,
                                           pidinfo_list,
                                           MAX_PIDS);
 
@@ -550,7 +571,7 @@ if(!pid_count) {
 result_count = 0;
 
 for(i = 0 ; i < pid_count ; i++) {
-    fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
+    fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID, dir_names, num_dirs);
 
     max_size = 0;
 
