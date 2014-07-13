@@ -41,7 +41,7 @@
 #include "cv.h"
 #include "sizes.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
+char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort"};
 char *proc_specifiq = NULL;
 signed char flag_quiet = 0, flag_verbose = 0, flag_glob = 0, flag_full = 0,
             flag_icase = 0;
@@ -58,7 +58,7 @@ while(*str) {
 return 1;
 }
 
-int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
+int find_pids_by_binary_name(char **bin_names, int num_names, pidinfo_t *pid_list, int max_pids)
 {
 DIR *proc;
 struct dirent *direntp;
@@ -67,8 +67,8 @@ char fullpath_dir[MAXPATHLEN + 1];
 char fullpath_exe[MAXPATHLEN + 1];
 char exe[MAXPATHLEN + 1];
 ssize_t len;
-int pid_count=0, cmdlfd=-1, res=-1;
-char *pnext=NULL;
+int pid_count=0, cmdlfd=-1, res=-1, cur_name=0;
+char *pnext=NULL, *bin_name=NULL;
 
 proc=opendir(PROC_PATH);
 if(!proc) {
@@ -78,102 +78,104 @@ if(!proc) {
 }
 
 while((direntp = readdir(proc)) != NULL) {
-    snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
+    for (cur_name=0; cur_name < num_names; cur_name++) {
+        bin_name=bin_names[cur_name];
+        snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
 
-    if(stat(fullpath_dir, &stat_buf) == -1) {
-        if (!flag_quiet)
-            fprintf(stderr, "stat (find_pids_by_binary_name): %s: %s\n", strerror(errno), fullpath_dir);
-        continue;
-    }
+        if(stat(fullpath_dir, &stat_buf) == -1) {
+            if (!flag_quiet)
+                fprintf(stderr, "stat (find_pids_by_binary_name): %s: %s\n", strerror(errno), fullpath_dir);
+            continue;
+        }
 
-    if((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
-        snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
-        len=readlink(fullpath_exe, exe, MAXPATHLEN);
-        if(len != -1)
-            exe[len] = 0;
-        else {
-            if (flag_verbose)
+        if((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
+            snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
+            len=readlink(fullpath_exe, exe, MAXPATHLEN);
+            if(len != -1)
+                exe[len] = 0;
+            else {
+                if (flag_verbose)
+                    // Will be mostly "Permission denied"
+                    fprintf(stderr, "readlink: %s: %s\n", strerror(errno), fullpath_exe);
+                continue;
+            }
+
+            if (flag_icase)
+                for (pnext=exe; pnext<exe+len-1; pnext++)
+                    *pnext=tolower(*pnext);
+
+            res=-1;
+            if (flag_glob)
+                res = fnmatch(bin_name, basename(exe), FNM_PATHNAME|FNM_PERIOD);
+            else
+                res = strcmp(basename(exe), bin_name);
+            if(res==0) {
+                pid_list[pid_count].pid=atol(direntp->d_name);
+                strcpy(pid_list[pid_count].name, basename(exe));
+                pid_count++;
+                if(pid_count==max_pids) goto leave;
+                continue;
+            }
+
+            // In case the binary name is different then $0
+            snprintf(fullpath_exe, MAXPATHLEN, "%s/cmdline", fullpath_dir);
+            cmdlfd = open(fullpath_exe, O_RDONLY);
+            if (cmdlfd < 0) {
                 // Will be mostly "Permission denied"
-                fprintf(stderr, "readlink: %s: %s\n", strerror(errno), fullpath_exe);
-            continue;
-        }
-
-        if (flag_icase)
-            for (pnext=exe; pnext<exe+len-1; pnext++)
-                *pnext=tolower(*pnext);
-
-        res=-1;
-        if (flag_glob)
-            res = fnmatch(bin_name, basename(exe), FNM_PATHNAME|FNM_PERIOD);
-        else
-            res = strcmp(basename(exe), bin_name);
-        if(res==0) {
-            pid_list[pid_count].pid=atol(direntp->d_name);
-            strcpy(pid_list[pid_count].name, basename(exe));
-            pid_count++;
-            if(pid_count==max_pids)
-                break;
-            continue;
-        }
-
-        // In case the binary name is different then $0
-        snprintf(fullpath_exe, MAXPATHLEN, "%s/cmdline", fullpath_dir);
-        cmdlfd = open(fullpath_exe, O_RDONLY);
-        if (cmdlfd < 0) {
-            // Will be mostly "Permission denied"
-            if (flag_verbose)
-                fprintf(stderr, "open: %s: %s\n", strerror(errno), fullpath_exe);
-        } else {
-            len = read(cmdlfd, exe, MAXPATHLEN);
-            if (len < 0) {
-                fprintf(stderr, "read: %s: %s\n", strerror(errno), fullpath_exe);
-                close(cmdlfd);
+                if (flag_verbose)
+                    fprintf(stderr, "open: %s: %s\n", strerror(errno), fullpath_exe);
             } else {
-                exe[len]=0;
-                close(cmdlfd);
-
-                if (flag_icase)
-                    for (pnext=exe; pnext<exe+len-1; pnext++)
-                        *pnext=tolower(*pnext);
-
-                if (flag_full) {
-                    // cmdline is null seperated, convert to spaces for
-                    // fnmatch.
-                    pnext = exe;
-                    while (pnext && pnext < exe+len-1) {
-                        pnext = strchr(pnext, '\0');
-                        if (pnext) *pnext = ' ';
-                    }
-                    pnext = exe;
+                len = read(cmdlfd, exe, MAXPATHLEN);
+                if (len < 0) {
+                    fprintf(stderr, "read: %s: %s\n", strerror(errno), fullpath_exe);
+                    close(cmdlfd);
                 } else {
-                    pnext = basename(exe);
-                }
+                    exe[len]=0;
+                    close(cmdlfd);
 
-                res=-1;
-                if (flag_glob)
-                    res = fnmatch(bin_name, pnext, FNM_PERIOD);
-                else
-                    res = strcmp(pnext, bin_name);
-                if(res==0) {
-                    pid_list[pid_count].pid=atol(direntp->d_name);
+                    if (flag_icase)
+                        for (pnext=exe; pnext<exe+len-1; pnext++)
+                            *pnext=tolower(*pnext);
 
                     if (flag_full) {
-                        // re-null terminate so basename doesn't get
-                        // confused.
-                        pnext = strchr(exe, ' ');
-                        if (pnext) *pnext = 0;
+                        // cmdline is null seperated, convert to spaces for
+                        // fnmatch.
+                        pnext = exe;
+                        while (pnext && pnext < exe+len-1) {
+                            pnext = strchr(pnext, '\0');
+                            if (pnext) *pnext = ' ';
+                        }
+                        pnext = exe;
+                    } else {
+                        pnext = basename(exe);
                     }
-                    strcpy(pid_list[pid_count].name, basename(exe));
-                    pid_count++;
-                    if(pid_count==max_pids)
-                        break;
-                    continue;
+
+                    res=-1;
+                    if (flag_glob)
+                        res = fnmatch(bin_name, pnext, FNM_PERIOD);
+                    else
+                        res = strcmp(pnext, bin_name);
+                    if(res==0) {
+                        pid_list[pid_count].pid=atol(direntp->d_name);
+
+                        if (flag_full) {
+                            // re-null terminate so basename doesn't get
+                            // confused.
+                            pnext = strchr(exe, ' ');
+                            if (pnext) *pnext = 0;
+                        }
+                        strcpy(pid_list[pid_count].name, basename(exe));
+                        pid_count++;
+                        if(pid_count==max_pids) goto leave;
+                        continue;
+                    }
                 }
             }
         }
     }
 }
 
+leave:
 closedir(proc);
 return pid_count;
 }
@@ -362,7 +364,7 @@ while(1) {
             printf("---------------------\n");
             printf("Shows running coreutils basic commands and displays stats.\n");
             printf("Supported commands: ");
-            for(i = 0 ; proc_names[i] ; i++)
+            for(i = 0 ; i < sizeof(proc_names)/sizeof(proc_names[0]); i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
             printf("Usage: %s [-vqVwhgfi] [-W] [-c command]\n",argv[0]);
@@ -459,6 +461,7 @@ char ftroughput[64];
 struct winsize ws;
 float perc;
 result_t results[MAX_RESULTS];
+char *specifiq_batch[MAX_PIDS];
 signed char still_there;
 char *pnext=NULL;
 
@@ -470,34 +473,35 @@ ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 pid_count = 0;
 
 if(!proc_specifiq) {
-    for(i = 0 ; proc_names[i] ; i++) {
-        pid_count += find_pids_by_binary_name(proc_names[i],
-                                              pidinfo_list + pid_count,
-                                              MAX_PIDS - pid_count);
-        if(pid_count >= MAX_PIDS) {
-            fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
-            break;
-        }
+    pid_count = find_pids_by_binary_name(proc_names,
+                                          sizeof(proc_names)/sizeof(proc_names[0]),
+                                          pidinfo_list,
+                                          MAX_PIDS);
+    if(pid_count >= MAX_PIDS) {
+        fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
     }
 } else {
-    //split on comma.
-    while (proc_specifiq) {
-        if (flag_icase)
-            for (pnext=proc_specifiq; *pnext; pnext++)
-                *pnext=tolower(*pnext);
+    //split on comma, put into array
+    i=1;
+    pnext = proc_specifiq;
+    specifiq_batch[0] = pnext;
 
-        pnext = strchr(proc_specifiq, ',');
-        if (pnext) *pnext = 0;
-        pid_count += find_pids_by_binary_name(proc_specifiq,
-                                              pidinfo_list + pid_count,
-                                              MAX_PIDS - pid_count);
-        if (!pnext) break;
-        proc_specifiq = pnext+1;
+    if (flag_icase) {
+        for (;*pnext; pnext++) *pnext=tolower(*pnext);
+        pnext = specifiq_batch[0];
+    }
 
-        if(pid_count >= MAX_PIDS) {
-            fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
-            break;
-        }
+    while ((pnext = strchr(pnext, ','))) {
+        *pnext = 0;
+        specifiq_batch[i++] = ++pnext;
+    }
+
+    pid_count = find_pids_by_binary_name(specifiq_batch, i,
+                                          pidinfo_list,
+                                          MAX_PIDS);
+
+    if(pid_count >= MAX_PIDS) {
+        fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
     }
 }
 
@@ -507,8 +511,14 @@ if(!pid_count) {
         return 0;
 
     fprintf(stderr,"No command currently running: ");
-    for(i = 0 ; proc_names[i] ; i++) {
-        fprintf(stderr,"%s, ", proc_names[i]);
+    if (proc_specifiq) {
+        for (j=0; j < i; j++) {
+            fprintf(stderr,"%s, ", specifiq_batch[j]);
+        }
+    } else {
+        for(i = 0 ; i < sizeof(proc_names)/sizeof(proc_names[0]); i++) {
+            fprintf(stderr,"%s, ", proc_names[i]);
+        }
     }
     fprintf(stderr,"exiting.\n");
     return 0;
