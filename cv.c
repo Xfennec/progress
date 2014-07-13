@@ -444,6 +444,28 @@ if (p->tm_yday)
 printf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
+// Split on sep, put pointers int dest.
+// Modifies src by replacing sep with '\0', up to len_dest occurrences only.
+int split(char *dest[], int len_dest, char *src, char sep) {
+    int i=0;
+    char *pnext = src;
+    if (pnext);
+    dest[0] = pnext;
+    i++;
+
+    if (flag_icase) {
+        for (;*pnext; pnext++) *pnext=tolower(*pnext);
+        pnext = dest[0];
+    }
+
+    while ((pnext = strchr(pnext, sep))) {
+        *pnext = 0;
+        if (i==len_dest) break;
+        dest[i++] = ++pnext;
+    }
+    return i;
+}
+
 // TODO: deal with --help
 
 int main(int argc, char *argv[])
@@ -463,7 +485,6 @@ float perc;
 result_t results[MAX_RESULTS];
 char *specifiq_batch[MAX_PIDS];
 signed char still_there;
-char *pnext=NULL;
 
 parse_options(argc,argv);
 
@@ -481,20 +502,8 @@ if(!proc_specifiq) {
         fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
     }
 } else {
-    //split on comma, put into array
-    i=1;
-    pnext = proc_specifiq;
-    specifiq_batch[0] = pnext;
-
-    if (flag_icase) {
-        for (;*pnext; pnext++) *pnext=tolower(*pnext);
-        pnext = specifiq_batch[0];
-    }
-
-    while ((pnext = strchr(pnext, ','))) {
-        *pnext = 0;
-        specifiq_batch[i++] = ++pnext;
-    }
+    i = split(specifiq_batch, sizeof(specifiq_batch)/sizeof(specifiq_batch[0]),
+              proc_specifiq, ',');
 
     pid_count = find_pids_by_binary_name(specifiq_batch, i,
                                           pidinfo_list,
