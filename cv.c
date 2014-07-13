@@ -36,222 +36,139 @@
 #include <sys/ioctl.h>
 #include <linux/fs.h>
 
+#ifdef BUILD_DAEMON
+#include <libnotify/notify.h>
+#endif
+
 #include "cv.h"
 #include "sizes.h"
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "cut", "sort", NULL};
-char *proc_specifiq = NULL;
-signed char flag_quiet = 0;
-signed char flag_throughput = 0;
+char *proc_specific = NULL;
+int flag_quiet = 0;
+int flag_throughput = 0;
+int flag_daemon = 0;
 double throughput_wait_secs = 1;
 
-signed char is_numeric(char *str)
-{
-	while(*str) {
-		if(!isdigit(*str))
-			return 0;
-		str++;
-	}
-	return 1;
+ssize_t size_for_stat(struct struct stat *fd_target, int fdfd, char *name){
+	if(!S_ISBLK(fd_target->st_mode))
+		return fd_target->st_size;
+
+	int fd = openat(fdfd, name, O_RDONLY);
+	if(fd < 0)
+		return -1;
+
+	ssize_t rv = 0;
+	if(ioctl(fd, BLKGETSIZE64, &rv) < 0)
+		rv = -1;
+	close(fd);
+	return rv;
 }
 
-int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
-{
-	DIR *proc;
-	struct dirent *direntp;
-	struct stat stat_buf;
-	char fullpath_dir[MAXPATHLEN + 1];
-	char fullpath_exe[MAXPATHLEN + 1];
-	char exe[MAXPATHLEN + 1];
-	ssize_t len;
-	int pid_count=0;
+int diropen(int entryfd, char *name, int *fdout, DIR** dirout){
+	int fd = openat(entryfd, "fd", O_SEARCH);
+	if(!fd) /* Likely permission denied */
+		return 1;
+	*fdout = fd;
 
-	proc=opendir(PROC_PATH);
-	if(!proc) {
-		perror("opendir");
-		fprintf(stderr,"Can't open %s\n",PROC_PATH);
-		exit(EXIT_FAILURE);
-	}
-
-	while((direntp = readdir(proc)) != NULL) {
-		snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
-
-		if(stat(fullpath_dir, &stat_buf) == -1) {
-			if (!flag_quiet)
-				perror("stat (find_pids_by_binary_name)");
-			continue;
-		}
-
-		if((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
-			snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
-			len=readlink(fullpath_exe, exe, MAXPATHLEN);
-			if(len != -1)
-				exe[len] = 0;
-			else {
-				// Will be mostly "Permission denied"
-				//~ perror("readlink");
-				continue;
-			}
-
-			if(!strcmp(basename(exe), bin_name)) {
-				pid_list[pid_count].pid=atol(direntp->d_name);
-				strcpy(pid_list[pid_count].name, bin_name);
-				pid_count++;
-				if(pid_count==max_pids)
-					break;
-			}
-		}
-	}
-
-	closedir(proc);
-	return pid_count;
+	DIR *adir = fdopendir(fd);
+	if(!adir)
+		return 1;
+	*dirout = adir;
 }
 
-int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
-{
-	DIR *proc;
-	struct dirent *direntp;
-	char path_dir[MAXPATHLEN + 1];
-	char fullpath[MAXPATHLEN + 1];
-	char link_dest[MAXPATHLEN + 1];
-	struct stat stat_buf;
-	int count = 0;
-	ssize_t len;
+int biggest_file_for_pid(int pid, int entryfd, fdinfo_t *res){
+	int rc = 0;
+	/* /proc/2342/fd */
+	int fdfd = 0;
+	DIR *fddir = NULL;
+	/* /proc/2342/fdinfo/23 */
+	int infofd = 0;
 
-	snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
-
-	proc=opendir(path_dir);
-	if(!proc) {
-		perror("opendir");
-		fprintf(stderr,"Can't open %s\n",path_dir);
-		return 0;
+	if(diropen(entryfd, "fd", &fdfd, &fddir)){
+		rc = 1;
+		goto cleanup;
 	}
 
-	while((direntp = readdir(proc)) != NULL) {
-		snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
-		if(stat(fullpath, &stat_buf) == -1) {
-			if (!flag_quiet)
-				perror("stat (find_fd_for_pid)");
-			continue;
-		}
+	size_t max_size = 0;
+	struct max_size_info[sizeof("fdinfo") + sizeof("2147483648")];
+	strcpy(max_size_info, "fdinfo/");
 
-		// if not a regular file or a block device
-		if(!S_ISREG(stat_buf.st_mode) && !S_ISBLK(stat_buf.st_mode))
+	struct dirent *fdent;
+	while(fdent = readdir(fddir)){
+		if(fdent->d_type != DT_LNK)
 			continue;
 
-		// try to read link ...
-		len=readlink(fullpath, link_dest, MAXPATHLEN);
-		if(len != -1)
-			link_dest[len] = 0;
-		else
+		struct stat fd_target;
+		if(fstatat(fdfd, fdent->d_name, &fd_target, 0))
 			continue;
 
-		// try to stat link target (invalid link ?)
-		if(stat(link_dest, &stat_buf) == -1)
+		size_t size_tmp = size_for_stat(&fd_target, fdfd, fdent->d_name);
+		if(size_tmp < max_size)
 			continue;
 
-		// OK, we've found a potential interesting file.
-
-		fd_list[count++] = atoi(direntp->d_name);
-		//~ printf("[debug] %s\n",fullpath);
-		if(count == max_fd)
-			break;
+		max_size = size_tmp;
+		strncpy(max_size_info + sizeof("fdinfo"), fdent->d_name, sizeof("2147483648"));
 	}
 
-	closedir(proc);
-	return count;
-}
-
-
-signed char get_fdinfo(pid_t pid, int fdnum, fdinfo_t *fd_info)
-{
-	struct stat stat_buf;
-	char fdpath[MAXPATHLEN + 1];
-	char line[LINE_LEN];
-	ssize_t len;
-	FILE *fp;
-	struct timezone tz;
-
-	fd_info->num = fdnum;
-
-	snprintf(fdpath, MAXPATHLEN, "%s/%d/fd/%d", PROC_PATH, pid, fdnum);
-
-	len=readlink(fdpath, fd_info->name, MAXPATHLEN);
-	if(len != -1)
-		fd_info->name[len] = 0;
-	else {
-		//~ perror("readlink");
-		return 0;
+	infofd = openat(entryfd, max_size_info, O_RDONLY);
+	if(infofd < 0){
+		rc = 1;
+		goto cleanup;
 	}
 
-	if(stat(fd_info->name, &stat_buf) == -1) {
-		//~ printf("[debug] %i - %s\n",pid,fd_info->name);
-		if (!flag_quiet)
-			perror("stat (get_fdinfo)");
-		return 0;
+	/* According to seq_show in fs/proc/fd.c in the linux kernel sources, the fdinfo file will always start with the
+	 * "pos" line. The pos field is printfed as a long long, i.e. 64 bit and thus never larger/smaller than ±2**63 */
+	char buf[32];
+	if(read(infofd, buf, 5) != 5 || strcmp(buf, "pos:")) {
+		rc = 1;
+		goto cleanup;
 	}
+	
+	ssize_t len = read(infofd, buf, sizeof(buf)-1);
+	buf[len] = 0;
 
-	if(S_ISBLK(stat_buf.st_mode)) {
-		int fd;
+	res->pos = atoll(buf);
+	res->pid  = pid;
+	res->size = max_size;
+	res->num  = atoi(max_size_fd);
 
-		fd = open(fd_info->name, O_RDONLY);
-
-		if (fd < 0) {
-			if (!flag_quiet)
-				perror("open (get_fdinfo)");
-			return 0;
-		}
-
-		if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
-			if (!flag_quiet)
-				perror("ioctl (get_fdinfo)");
-			return 0;
-		}
-	} else {
-		fd_info->size = stat_buf.st_size;
-	}
-
-	fd_info->pos = 0;
-
-	snprintf(fdpath, MAXPATHLEN, "%s/%d/fdinfo/%d", PROC_PATH, pid, fdnum);
-	fp = fopen(fdpath, "rt");
-	gettimeofday(&fd_info->tv, &tz);
-
-	if(!fp) {
-		if (!flag_quiet)
-			perror("fopen (get_fdinfo)");
-		return 0;
-	}
-
-	while(fgets(line, LINE_LEN - 1, fp) != NULL) {
-		line[4]=0;
-		if(!strcmp(line, "pos:")) {
-			fd_info->pos = atoll(line + 5);
-			break;
-		}
-	}
+cleanup:
+	if(infofd > 0)
+		close(infofd);
+	if(fddir)
+		closedir(fddir);
+	if(fdfd > 0)
+		close(fdfd);
 
 	return 1;
 }
 
-void print_bar(float perc, int char_available)
-{
-	int i;
-	int num;
-
-	num = (char_available / 100.0) * perc;
-
-	for(i = 0 ; i < num-1 ; i++) {
+void print_bar(float ratio, int width) {
+	width -= 2; /* '[', ']' */
+	putchar('[');
+	int pos = 0;
+	for(; pos<(width*ratio)-1; pos++)
 		putchar('=');
-	}
 	putchar('>');
-	i++;
-
-	for( ; i < char_available ; i++)
+	for(pos++; pos<width; pos++)
 		putchar(' ');
-
+	putchar(']');
 }
 
+int is_numeric(char *str) {
+	while(isdigit(*str++))
+		if(!*str)
+			return 0;
+	return 1;
+}
+
+int inlist(char *str, char **list) {
+	for(; *list; list++)
+		if(!strcmp(str, *list))
+			return 1;
+	return 0;
+}
 
 void parse_options(int argc, char *argv[])
 {
@@ -295,6 +212,7 @@ void parse_options(int argc, char *argv[])
 				printf("  -q --quiet            hides some warning/error messages\n");
 				printf("  -w --wait             estimate I/O throughput (slower display)\n");
 				printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
+				printf("  -d --daemonize        Daemonize and show results using libnotify (implies -w)\n");
 				printf("  -h --help             this message\n");
 				printf("  -c --command cmd      monitor only this command name (ex: firefox)\n");
 
@@ -306,7 +224,7 @@ void parse_options(int argc, char *argv[])
 				break;
 
 			case 'c':
-				proc_specifiq = strdup(optarg);
+				proc_specific = strdup(optarg);
 				break;
 
 			case 'w':
@@ -317,6 +235,9 @@ void parse_options(int argc, char *argv[])
 				flag_throughput = 1;
 				throughput_wait_secs = atof(optarg);
 				break;
+
+			case 'd':
+				flag_daemon = 1;
 
 			case '?':
 			default:
@@ -335,146 +256,120 @@ void parse_options(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int pid_count, fd_count, result_count;
-	int i,j;
-	pidinfo_t pidinfo_list[MAX_PIDS];
-	fdinfo_t fdinfo;
-	fdinfo_t biggest_fd;
-	int fdnum_list[MAX_FD_PER_PID];
-	off_t max_size;
 	char fsize[64];
 	char fpos[64];
 	char ftroughput[64];
-	struct winsize ws;
 	float perc;
-	result_t results[MAX_RESULTS];
-	signed char still_there;
+	fdinfo_t results[MAX_RESULTS];
 
 	parse_options(argc,argv);
 
-	// ws.ws_row, ws.ws_col
-	ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
+	DIR* proc = opendir("/proc");
+	if(!proc) {
+		fprintf(stderr, "Can't open /proc\n");
+		exit(1);
+	}
+	int procfd = open("/proc");
+	if(!proc) {
+		fprintf(stderr, "Can't open /proc\n");
+		exit(1);
+	}
 
-	pid_count = 0;
+	char *proc_specific_list[] = {proc_specific, NULL};
+	char **name_list = proc_specific ? proc_names : proc_specific_list;
 
-	if(!proc_specifiq) {
-		for(i = 0 ; proc_names[i] ; i++) {
-			pid_count += find_pids_by_binary_name(proc_names[i],
-					pidinfo_list + pid_count,
-					MAX_PIDS - pid_count);
-			if(pid_count >= MAX_PIDS) {
-				fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
-				break;
+	do {
+		size_t result_count = 0;
+		int thisfd = 0;
+		struct dirent *procent;
+		while(procent = readdir(proc) && result_count < MAX_RESULTS) {
+			if(thisfd)
+				close(thisfd);
+
+			if(procent->d_type != DT_DIR || !is_numeric(procent->d_name))
+				continue;
+
+			thisfd = openat(procfd, procent->d_name, O_SEARCH);
+			if(!thisfd) // Will be mostly "Permission denied"
+				continue;
+
+			char path_buf[MAXPATHLEN];
+			ssize_t len = readlinkat(thisfd, "exe", path_buf, sizeof(path_buf));
+			if(len < 0) // Will be mostly "Permission denied"
+				continue;
+			path_buf[len] = 0;
+
+			if(!inlist(basename(exe), name_list))
+				continue;
+
+			pid_t pid = atol(procent->d_name);
+			if(!biggest_file_for_pid(pid, results+result_count)){
+				if(!flag_quiet) {
+					fprintf(stderr, "Found no large open files for %s [%5d]\n", pid, name);
+				continue;
 			}
+
+			//FIXME
+			result_count++;
 		}
-	} else {
-		pid_count += find_pids_by_binary_name(proc_specifiq,
-				pidinfo_list + pid_count,
-				MAX_PIDS - pid_count);
-	}
+		if(thisfd)
+			close(thisfd);
 
+		// wait a bit, so we can estimate the throughput
+		if(flag_throughput)
+			usleep(1000000 * throughput_wait_secs);
 
-	if(!pid_count) {
-		if(flag_quiet)
-			return 0;
+		for(size_t i=0; i<result_count; i++) {
 
-		fprintf(stderr,"No command currently running: ");
-		for(i = 0 ; proc_names[i] ; i++) {
-			fprintf(stderr,"%s, ", proc_names[i]);
-		}
-		fprintf(stderr,"exiting.\n");
-		return 0;
-	}
+			if (flag_throughput) {
+				still_there = get_fdinfo(results[i].pid.pid, results[i].fd.num, &fdinfo);
+				if (still_there && strcmp(results[i].fd.name, fdinfo.name))
+					still_there = 0; // still there, but it's not the same file !
+			} else
+				still_there = 0;
 
-	result_count = 0;
+			if (!still_there) {
+				// pid is no more here (or no throughput was asked), use initial info
+				format_size(results[i].fd.pos, fpos);
+				format_size(results[i].fd.size, fsize);
+				perc = ((double)100 / (double)results[i].fd.size) * (double)results[i].fd.pos;
+			} else {
+				// use the newest info
+				format_size(fdinfo.pos, fpos);
+				format_size(fdinfo.size, fsize);
+				perc = ((double)100 / (double)fdinfo.size) * (double)fdinfo.pos;
 
-	for(i = 0 ; i < pid_count ; i++) {
-		fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
-
-		max_size = 0;
-
-		// let's find the biggest opened file
-		for(j = 0 ; j < fd_count ; j++) {
-			get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
-
-			if(fdinfo.size > max_size) {
-				biggest_fd = fdinfo;
-				max_size = fdinfo.size;
 			}
+
+			printf("[%5d] %s %s %.1f%% (%s / %s)",
+					results[i].pid.pid,
+					results[i].pid.name,
+					results[i].fd.name,
+					perc,
+					fpos,
+					fsize);
+
+			if (flag_throughput && still_there) {
+				// results[i] vs fdinfo
+				long long usec_diff;
+				off_t byte_diff;
+				off_t bytes_per_sec;
+
+				usec_diff =   (fdinfo.tv.tv_sec  - results[i].fd.tv.tv_sec) * 1000000L
+					+ (fdinfo.tv.tv_usec - results[i].fd.tv.tv_usec);
+				byte_diff = fdinfo.pos - results[i].fd.pos;
+				bytes_per_sec = byte_diff / (usec_diff / 1000000.0);
+
+				format_size(bytes_per_sec, ftroughput);
+				printf(" %s/s", ftroughput);
+			}
+
+
+			printf("\n");
 		}
+	}while(flag_daemon || flag_throughput);
 
-		if(!max_size) { // nothing found
-			printf("[%5d] %s inactive/flushing/streaming/...\n",
-					pidinfo_list[i].pid,
-					pidinfo_list[i].name);
-			continue;
-		}
-
-		// We've our biggest_fd now, let's store the result
-		results[result_count].pid = pidinfo_list[i];
-		results[result_count].fd = biggest_fd;
-
-		result_count++;
-	}
-
-	// wait a bit, so we can estimate the throughput
-	if (flag_throughput)
-		usleep(1000000 * throughput_wait_secs);
-
-	for (i = 0 ; i < result_count ; i++) {
-
-		if (flag_throughput) {
-			still_there = get_fdinfo(results[i].pid.pid, results[i].fd.num, &fdinfo);
-			if (still_there && strcmp(results[i].fd.name, fdinfo.name))
-				still_there = 0; // still there, but it's not the same file !
-		} else
-			still_there = 0;
-
-		if (!still_there) {
-			// pid is no more here (or no throughput was asked), use initial info
-			format_size(results[i].fd.pos, fpos);
-			format_size(results[i].fd.size, fsize);
-			perc = ((double)100 / (double)results[i].fd.size) * (double)results[i].fd.pos;
-		} else {
-			// use the newest info
-			format_size(fdinfo.pos, fpos);
-			format_size(fdinfo.size, fsize);
-			perc = ((double)100 / (double)fdinfo.size) * (double)fdinfo.pos;
-
-		}
-
-		printf("[%5d] %s %s %.1f%% (%s / %s)",
-				results[i].pid.pid,
-				results[i].pid.name,
-				results[i].fd.name,
-				perc,
-				fpos,
-				fsize);
-
-		if (flag_throughput && still_there) {
-			// results[i] vs fdinfo
-			long long usec_diff;
-			off_t byte_diff;
-			off_t bytes_per_sec;
-
-			usec_diff =   (fdinfo.tv.tv_sec  - results[i].fd.tv.tv_sec) * 1000000L
-				+ (fdinfo.tv.tv_usec - results[i].fd.tv.tv_usec);
-			byte_diff = fdinfo.pos - results[i].fd.pos;
-			bytes_per_sec = byte_diff / (usec_diff / 1000000.0);
-
-			format_size(bytes_per_sec, ftroughput);
-			printf(" %s/s", ftroughput);
-		}
-
-
-		printf("\n");
-
-		// Need to work on window width when using screen/watch/...
-		//~ printf("    [");
-		//~ print_bar(perc, ws.ws_col-6);
-		//~ printf("]\n");
-
-	}
-
+cleanup:
+	closedir(proc);
 	return 0;
 }

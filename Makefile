@@ -1,6 +1,8 @@
 OBJ=cv
 CFLAGS=-g -Wall -D_FILE_OFFSET_BITS=64
-
+ifdef BUILD_DAEMON
+	CFLAGS += -DBUILD_DAEMON $(pkg-config --cflags --libs libnotify)
+endif
 PREFIX = $(DESTDIR)/usr/local
 BINDIR = $(PREFIX)/bin
 
