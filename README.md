@@ -11,7 +11,8 @@ running on your system and displays the percentage of copied data.
 It can now also display an estimated throughput (using -w flag).
 
 ![cv screenshot with cp and mv](https://raw.github.com/Xfennec/cv/master/capture.png)
-(After many requests: the colors in the shell comes from [powerline-shell](https://github.com/milkbikis/powerline-shell). Try it, it's cool.)
+
+_(After many requests: the colors in the shell comes from [powerline-shell](https://github.com/milkbikis/powerline-shell). Try it, it's cool.)_
 
 It's probably easy to add a progress, show estimated time, and with a bit more work,
 provide a "top-like" mode with more accurate informations.
