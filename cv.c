@@ -39,7 +39,7 @@
 #include "cv.h"
 #include "sizes.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "cut", "sort", NULL};
+char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
 signed char flag_quiet = 0;
 signed char flag_throughput = 0;
