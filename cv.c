@@ -34,7 +34,14 @@
 // for the BLKGETSIZE64 code section
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <linux/fs.h>
+#ifdef __APPLE__
+# include <unistd.h>
+# include <sys/proc_info.h>
+# include <libproc.h>
+# include <sys/disk.h>
+#else
+# include <linux/fs.h>
+#endif
 
 #include "cv.h"
 #include "sizes.h"
@@ -55,6 +62,31 @@ while(*str) {
 return 1;
 }
 
+#ifdef __APPLE__
+int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
+{
+int pid_count=0;
+int nb_processes = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
+char exe[1024];
+pid_t *pids = malloc(nb_processes * sizeof(pid_t));
+proc_listpids(PROC_ALL_PIDS, 0, pids, nb_processes);
+for(int i = 0; i < nb_processes; ++i) {
+    if (pids[i] == 0) {
+        continue;
+    }
+    proc_name(pids[i], exe, sizeof(exe));
+    if(!strcmp(exe, bin_name)) {
+        pid_list[pid_count].pid=pids[i];
+        strcpy(pid_list[pid_count].name, bin_name);
+        pid_count++;
+        if(pid_count==max_pids)
+            break;
+    }
+}
+free(pids);
+return pid_count;
+}
+#else
 int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 {
 DIR *proc;
@@ -106,7 +138,46 @@ while((direntp = readdir(proc)) != NULL) {
 closedir(proc);
 return pid_count;
 }
+#endif
 
+#ifdef __APPLE__
+int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
+{
+int count = 0;
+int bufferSize = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, 0, 0);
+struct stat stat_buf;
+
+if (bufferSize < 0) {
+    printf("Error :/, cannot proc_pidinfo\n");
+    return 0;
+}
+struct proc_fdinfo *procFDInfo = (struct proc_fdinfo *)malloc(bufferSize);
+proc_pidinfo(pid, PROC_PIDLISTFDS, 0, procFDInfo, bufferSize);
+int numberOfProcFDs = bufferSize / PROC_PIDLISTFD_SIZE;
+
+for(int i = 0; i < numberOfProcFDs; i++) {
+    if(procFDInfo[i].proc_fdtype == PROX_FDTYPE_VNODE) {
+        struct vnode_fdinfowithpath vnodeInfo;
+        proc_pidfdinfo(pid, procFDInfo[i].proc_fd, PROC_PIDFDVNODEPATHINFO, &vnodeInfo, PROC_PIDFDVNODEPATHINFO_SIZE);
+        if (stat(vnodeInfo.pvip.vip_path, &stat_buf) < 0) {
+            if (!flag_quiet)
+                perror("sstat");
+            continue;
+        }
+        if(!S_ISREG(stat_buf.st_mode) && !S_ISBLK(stat_buf.st_mode))
+            continue;
+
+        // OK, we've found a potential interesting file.
+
+        fd_list[count++] = procFDInfo[i].proc_fd;
+        //~ printf("[debug] %s\n",vnodeInfo.pvip.vip_path);
+        if(count == max_fd)
+            break;
+    }
+}
+return count;
+}
+#else
 int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
 {
 DIR *proc;
@@ -161,19 +232,28 @@ while((direntp = readdir(proc)) != NULL) {
 closedir(proc);
 return count;
 }
+#endif
 
 
 signed char get_fdinfo(pid_t pid, int fdnum, fdinfo_t *fd_info)
 {
 struct stat stat_buf;
+#ifndef __APPLE__
 char fdpath[MAXPATHLEN + 1];
 char line[LINE_LEN];
-ssize_t len;
 FILE *fp;
+#endif
 struct timezone tz;
 
 fd_info->num = fdnum;
 
+#ifdef __APPLE__
+struct vnode_fdinfowithpath vnodeInfo;
+if (proc_pidfdinfo(pid, fdnum, PROC_PIDFDVNODEPATHINFO, &vnodeInfo, PROC_PIDFDVNODEPATHINFO_SIZE) <= 0)
+    return 0;
+strncpy(fd_info->name, vnodeInfo.pvip.vip_path, MAXPATHLEN);
+#else
+ssize_t len;
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fd/%d", PROC_PATH, pid, fdnum);
 
 len=readlink(fdpath, fd_info->name, MAXPATHLEN);
@@ -183,6 +263,7 @@ else {
     //~ perror("readlink");
     return 0;
 }
+#endif
 
 if(stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
@@ -202,15 +283,34 @@ if(S_ISBLK(stat_buf.st_mode)) {
         return 0;
     }
 
+#ifdef __APPLE__
+    uint64_t bc;
+    uint32_t bs;
+
+    bs = 0;
+    bc = 0;
+    if (ioctl(fd, DKIOCGETBLOCKSIZE, &bs) < 0 ||  ioctl(fd, DKIOCGETBLOCKCOUNT, &bc) < 0) {
+        if (!flag_quiet)
+            perror("ioctl (get_fdinfo)");
+        return 0;
+    }
+    fd_info->size = bc*bs;
+    printf("Size: %lld\n", fd_info->size);
+#else
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
         if (!flag_quiet)
             perror("ioctl (get_fdinfo)");
         return 0;
     }
+#endif
 } else {
     fd_info->size = stat_buf.st_size;
 }
 
+#ifdef __APPLE__
+fd_info->pos = vnodeInfo.pfi.fi_offset;
+gettimeofday(&fd_info->tv, &tz);
+#else
 fd_info->pos = 0;
 
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fdinfo/%d", PROC_PATH, pid, fdnum);
@@ -230,6 +330,7 @@ while(fgets(line, LINE_LEN - 1, fp) != NULL) {
         break;
     }
 }
+#endif
 
 return 1;
 }
