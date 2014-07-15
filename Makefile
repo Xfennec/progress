@@ -12,5 +12,6 @@ clean :
 	rm -f *.o $(OBJ)
 install : $(OBJ)
 	@echo "Installing to $(BINDIR) ..."
+	@mkdir -p $(BINDIR)
 	@install -m 0755 $(OBJ) $(BINDIR)/$(TARGET) || \
 	echo "Failed. Try "make PREFIX=~ install" ?"
