@@ -44,6 +44,8 @@ char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", 
 char *proc_specifiq = NULL;
 signed char flag_quiet = 0;
 signed char flag_throughput = 0;
+signed char flag_monitor = 0;
+signed char flag_monitor_continous = 0;
 double throughput_wait_secs = 1;
 
 signed char is_numeric(char *str)
@@ -257,16 +259,18 @@ for( ; i < char_available ; i++)
 void parse_options(int argc, char *argv[])
 {
 static struct option long_options[] = {
-    {"version",    no_argument,       0, 'v'},
-    {"quiet",      no_argument,       0, 'q'},
-    {"wait",       no_argument,       0, 'w'},
-    {"wait-delay", required_argument, 0, 'W'},
-    {"help",       no_argument,       0, 'h'},
-    {"command",    required_argument, 0, 'c'},
+    {"version",           no_argument,       0, 'v'},
+    {"quiet",             no_argument,       0, 'q'},
+    {"wait",              no_argument,       0, 'w'},
+    {"wait-delay",        required_argument, 0, 'W'},
+    {"monitor",           no_argument,       0, 'm'},
+    {"monitor-continous", no_argument,       0, 'M'},
+    {"help",              no_argument,       0, 'h'},
+    {"command",           required_argument, 0, 'c'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqwhc:W:";
+static char *options_string = "vqwmMhc:W:";
 int c,i;
 int option_index = 0;
 
@@ -291,13 +295,15 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqwh] [-W] [-c command]\n",argv[0]);
-            printf("  -v --version          show version\n");
-            printf("  -q --quiet            hides some warning/error messages\n");
-            printf("  -w --wait             estimate I/O throughput and ETA (slower display)\n");
-            printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
-            printf("  -h --help             this message\n");
-            printf("  -c --command cmd      monitor only this command name (ex: firefox)\n");
+            printf("Usage: %s [-vqwmMh] [-W] [-c command]\n",argv[0]);
+            printf("  -v --version            show version\n");
+            printf("  -q --quiet              hides some warning/error messages\n");
+            printf("  -w --wait               estimate I/O throughput and ETA (slower display)\n");
+            printf("  -W --wait-delay secs    wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
+            printf("  -m --monitor            loop while monitored processes are still running\n");
+            printf("  -M --monitor-continous  like monitor but never stop (similar to watch %s)\n", argv[0]);
+            printf("  -h --help               this message\n");
+            printf("  -c --command cmd        monitor only this command name (ex: firefox)\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -312,6 +318,14 @@ while(1) {
 
         case 'w':
             flag_throughput = 1;
+            break;
+
+        case 'm':
+            flag_monitor = 1;
+            break;
+
+        case 'M':
+            flag_monitor_continous = 1;
             break;
 
         case 'W':
@@ -342,10 +356,7 @@ if (p->tm_yday)
 printf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
-// TODO: deal with --help
-
-int main(int argc, char *argv[])
-{
+int monitor_processes(int *nb_pid) {
 int pid_count, fd_count, result_count;
 int i,j;
 pidinfo_t pidinfo_list[MAX_PIDS];
@@ -356,15 +367,9 @@ off_t max_size;
 char fsize[64];
 char fpos[64];
 char ftroughput[64];
-struct winsize ws;
 float perc;
 result_t results[MAX_RESULTS];
 signed char still_there;
-
-parse_options(argc,argv);
-
-// ws.ws_row, ws.ws_col
-ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 
 pid_count = 0;
 
@@ -384,6 +389,7 @@ if(!proc_specifiq) {
                                           MAX_PIDS - pid_count);
 }
 
+*nb_pid = pid_count;
 
 if(!pid_count) {
     if(flag_quiet)
@@ -487,8 +493,30 @@ for (i = 0 ; i < result_count ; i++) {
     //~ printf("    [");
     //~ print_bar(perc, ws.ws_col-6);
     //~ printf("]\n");
-
 }
+if (flag_monitor || flag_monitor_continous)
+    printf("---\n");
+return 0;
+}
+
+// TODO: deal with --help
+
+int main(int argc, char *argv[])
+{
+pid_t nb_pid;
+struct winsize ws;
+
+parse_options(argc,argv);
+
+// ws.ws_row, ws.ws_col
+ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
+
+do {
+    monitor_processes(&nb_pid);
+    if(flag_monitor_continous && !nb_pid) {
+        usleep(1000000 * throughput_wait_secs);
+    }
+} while ((flag_monitor && nb_pid) || flag_monitor_continous);
 
 return 0;
 }
