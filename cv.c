@@ -26,6 +26,7 @@
 #include <limits.h>
 #include <ctype.h>
 #include <libgen.h>
+#include <time.h>
 
 #include <getopt.h>
 
@@ -432,6 +433,16 @@ if (optind < argc) {
 
 }
 
+void print_eta(time_t seconds)
+{
+struct tm *p = gmtime(&seconds);
+
+printf(" eta ");
+if (p->tm_yday)
+    printf("%d day%s, ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
+printf("%d:%02d:%02d\n", p->tm_hour, p->tm_min, p->tm_sec);
+}
+
 // TODO: deal with --help
 
 int main(int argc, char *argv[])
@@ -565,6 +576,9 @@ for (i = 0 ; i < result_count ; i++) {
 
         format_size(bytes_per_sec, ftroughput);
         printf(" %s/s", ftroughput);
+        if (bytes_per_sec && fdinfo.size - fdinfo.pos > 0) {
+            print_eta((fdinfo.size - fdinfo.pos) / bytes_per_sec);
+        }
     }
 
 
