@@ -1,5 +1,5 @@
-#ifndef _SIZES_H
-#define _SIZES_H
+#ifndef CV_SIZES_H
+#define CV_SIZES_H
 
 #include <inttypes.h>
 #include <stdio.h>
