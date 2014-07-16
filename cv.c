@@ -294,7 +294,7 @@ while(1) {
             printf("Usage: %s [-vqwh] [-W] [-c command]\n",argv[0]);
             printf("  -v --version          show version\n");
             printf("  -q --quiet            hides some warning/error messages\n");
-            printf("  -w --wait             estimate I/O throughput (slower display)\n");
+            printf("  -w --wait             estimate I/O throughput and ETA (slower display)\n");
             printf("  -W --wait-delay secs  wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -h --help             this message\n");
             printf("  -c --command cmd      monitor only this command name (ex: firefox)\n");
@@ -339,7 +339,7 @@ struct tm *p = gmtime(&seconds);
 printf(" eta ");
 if (p->tm_yday)
     printf("%d day%s, ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
-printf("%d:%02d:%02d\n", p->tm_hour, p->tm_min, p->tm_sec);
+printf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
 // TODO: deal with --help
