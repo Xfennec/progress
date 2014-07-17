@@ -42,6 +42,7 @@
 
 #include "cv.h"
 #include "sizes.h"
+#include "hlist.h"
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
@@ -390,6 +391,34 @@ if (p->tm_yday)
 nprintf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
+void copy_and_clean_results(result_t *results, int result_count, char copy) {
+static result_t old_results[MAX_RESULTS];
+static int old_result_count = 0;
+
+if(copy) {
+    int i;
+    for (i = 0; i < old_result_count; ++i) {
+        int j;
+        char found = 0;
+        for (j = 0; j < result_count; ++j) {
+            if (results[j].pid.pid == old_results[i].pid.pid) {
+                found = 1;
+                results[j].hbegin = old_results[i].hbegin;
+                results[j].hend = old_results[i].hend;
+                results[j].hsize = old_results[i].hsize;
+                break;
+            }
+        }
+        if (!found)
+            free_hlist(old_results[i].hbegin);
+    }
+}
+else {
+    memcpy(old_results, results, sizeof(old_results));
+    old_result_count = result_count;
+  }
+}
+
 int monitor_processes(int *nb_pid) {
 int pid_count, fd_count, result_count;
 int i,j;
@@ -467,6 +496,9 @@ for(i = 0 ; i < pid_count ; i++) {
     // We've our biggest_fd now, let's store the result
     results[result_count].pid = pidinfo_list[i];
     results[result_count].fd = biggest_fd;
+    results[result_count].hbegin = NULL;
+    results[result_count].hend = NULL;
+    results[result_count].hsize = 0;
 
     result_count++;
 }
@@ -478,6 +510,7 @@ if (flag_monitor || flag_monitor_continous) {
     clear();
     refresh();
 }
+copy_and_clean_results(results, result_count, 1);
 for (i = 0 ; i < result_count ; i++) {
 
     if (flag_throughput) {
@@ -517,7 +550,8 @@ for (i = 0 ; i < result_count ; i++) {
         usec_diff =   (fdinfo.tv.tv_sec  - results[i].fd.tv.tv_sec) * 1000000L
                     + (fdinfo.tv.tv_usec - results[i].fd.tv.tv_usec);
         byte_diff = fdinfo.pos - results[i].fd.pos;
-        bytes_per_sec = byte_diff / (usec_diff / 1000000.0);
+        results[i].hsize += add_to_hlist(&results[i].hbegin, &results[i].hend, results[i].hsize, byte_diff / (usec_diff / 1000000.0));
+        bytes_per_sec = get_hlist_average(results[i].hbegin, results[i].hsize);
 
         format_size(bytes_per_sec, ftroughput);
         nprintf(" %s/s", ftroughput);
@@ -534,6 +568,7 @@ for (i = 0 ; i < result_count ; i++) {
     //~ print_bar(perc, ws.ws_col-6);
     //~ printf("]\n");
 }
+copy_and_clean_results(results, result_count, 0);
 return 0;
 }
 
@@ -563,6 +598,7 @@ if(flag_monitor || flag_monitor_continous) {
       flag_throughput = 1;
       throughput_wait_secs = 1;
     }
+    set_hlist_size(throughput_wait_secs);
     signal(SIGINT, int_handler);
     do {
         monitor_processes(&nb_pid);
@@ -574,6 +610,7 @@ if(flag_monitor || flag_monitor_continous) {
     endwin();
 }
 else {
+    set_hlist_size(throughput_wait_secs);
     monitor_processes(&nb_pid);
 }
 return 0;
