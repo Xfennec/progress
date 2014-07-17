@@ -27,6 +27,9 @@
 #include <ctype.h>
 #include <libgen.h>
 #include <time.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <curses.h>
 
 #include <getopt.h>
 
@@ -42,6 +45,7 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
 char *proc_specifiq = NULL;
+WINDOW *mainwin;
 signed char flag_quiet = 0;
 signed char flag_throughput = 0;
 signed char flag_monitor = 0;
@@ -58,6 +62,36 @@ while(*str) {
 return 1;
 }
 
+void nprintf(char *format, ...)
+{
+va_list args;
+
+va_start(args, format);
+if (flag_monitor || flag_monitor_continous)
+    vw_printw(mainwin, format, args);
+else
+    vprintf(format, args);
+va_end(args);
+}
+
+void nfprintf(FILE *file, char *format, ...) {
+va_list args;
+
+va_start(args, format);
+if (flag_monitor || flag_monitor_continous)
+    vw_printw(mainwin, format, args);
+else
+    vfprintf(file, format, args);
+va_end(args);
+}
+
+void nperror(const char *s) {
+if (flag_monitor || flag_monitor_continous)
+    printw("%s:%s", s, strerror(errno));
+else
+    perror(s);
+}
+
 int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 {
 DIR *proc;
@@ -71,8 +105,8 @@ int pid_count=0;
 
 proc=opendir(PROC_PATH);
 if(!proc) {
-    perror("opendir");
-    fprintf(stderr,"Can't open %s\n",PROC_PATH);
+    nperror("opendir");
+    nfprintf(stderr,"Can't open %s\n",PROC_PATH);
     exit(EXIT_FAILURE);
 }
 
@@ -81,7 +115,7 @@ while((direntp = readdir(proc)) != NULL) {
 
     if(stat(fullpath_dir, &stat_buf) == -1) {
         if (!flag_quiet)
-            perror("stat (find_pids_by_binary_name)");
+            nperror("stat (find_pids_by_binary_name)");
         continue;
     }
 
@@ -92,7 +126,7 @@ while((direntp = readdir(proc)) != NULL) {
             exe[len] = 0;
         else {
             // Will be mostly "Permission denied"
-            //~ perror("readlink");
+            //~ nperror("readlink");
             continue;
         }
 
@@ -125,8 +159,8 @@ snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
 
 proc=opendir(path_dir);
 if(!proc) {
-    perror("opendir");
-    fprintf(stderr,"Can't open %s\n",path_dir);
+    nperror("opendir");
+    nfprintf(stderr,"Can't open %s\n",path_dir);
     return 0;
 }
 
@@ -134,7 +168,7 @@ while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
     if(stat(fullpath, &stat_buf) == -1) {
         if (!flag_quiet)
-            perror("stat (find_fd_for_pid)");
+            nperror("stat (find_fd_for_pid)");
         continue;
     }
 
@@ -183,14 +217,14 @@ len=readlink(fdpath, fd_info->name, MAXPATHLEN);
 if(len != -1)
     fd_info->name[len] = 0;
 else {
-    //~ perror("readlink");
+    //~ nperror("readlink");
     return 0;
 }
 
 if(stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
     if (!flag_quiet)
-        perror("stat (get_fdinfo)");
+        nperror("stat (get_fdinfo)");
     return 0;
 }
 
@@ -201,13 +235,13 @@ if(S_ISBLK(stat_buf.st_mode)) {
 
     if (fd < 0) {
         if (!flag_quiet)
-            perror("open (get_fdinfo)");
+            nperror("open (get_fdinfo)");
         return 0;
     }
 
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
         if (!flag_quiet)
-            perror("ioctl (get_fdinfo)");
+            nperror("ioctl (get_fdinfo)");
         return 0;
     }
 } else {
@@ -222,7 +256,7 @@ gettimeofday(&fd_info->tv, &tz);
 
 if(!fp) {
     if (!flag_quiet)
-        perror("fopen (get_fdinfo)");
+        nperror("fopen (get_fdinfo)");
     return 0;
 }
 
@@ -350,10 +384,10 @@ void print_eta(time_t seconds)
 {
 struct tm *p = gmtime(&seconds);
 
-printf(" eta ");
+nprintf(" eta ");
 if (p->tm_yday)
-    printf("%d day%s, ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
-printf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
+    nprintf("%d day%s, ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
+nprintf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
 int monitor_processes(int *nb_pid) {
@@ -379,7 +413,7 @@ if(!proc_specifiq) {
                                               pidinfo_list + pid_count,
                                               MAX_PIDS - pid_count);
         if(pid_count >= MAX_PIDS) {
-            fprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+            nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
             break;
         }
     }
@@ -394,12 +428,15 @@ if(!proc_specifiq) {
 if(!pid_count) {
     if(flag_quiet)
         return 0;
-
-    fprintf(stderr,"No command currently running: ");
-    for(i = 0 ; proc_names[i] ; i++) {
-        fprintf(stderr,"%s, ", proc_names[i]);
+    if (flag_monitor || flag_monitor_continous) {
+        clear();
+	refresh();
     }
-    fprintf(stderr,"exiting.\n");
+    nfprintf(stderr,"No command currently running: ");
+    for(i = 0 ; proc_names[i] ; i++) {
+        nfprintf(stderr,"%s, ", proc_names[i]);
+    }
+    nfprintf(stderr,"exiting.\n");
     return 0;
 }
 
@@ -421,7 +458,7 @@ for(i = 0 ; i < pid_count ; i++) {
     }
 
     if(!max_size) { // nothing found
-        printf("[%5d] %s inactive/flushing/streaming/...\n",
+        nprintf("[%5d] %s inactive/flushing/streaming/...\n",
                 pidinfo_list[i].pid,
                 pidinfo_list[i].name);
         continue;
@@ -437,7 +474,10 @@ for(i = 0 ; i < pid_count ; i++) {
 // wait a bit, so we can estimate the throughput
 if (flag_throughput)
     usleep(1000000 * throughput_wait_secs);
-
+if (flag_monitor || flag_monitor_continous) {
+    clear();
+    refresh();
+}
 for (i = 0 ; i < result_count ; i++) {
 
     if (flag_throughput) {
@@ -460,7 +500,7 @@ for (i = 0 ; i < result_count ; i++) {
 
     }
 
-    printf("[%5d] %s %s %.1f%% (%s / %s)",
+    nprintf("[%5d] %s %s %.1f%% (%s / %s)",
         results[i].pid.pid,
         results[i].pid.name,
         results[i].fd.name,
@@ -480,23 +520,27 @@ for (i = 0 ; i < result_count ; i++) {
         bytes_per_sec = byte_diff / (usec_diff / 1000000.0);
 
         format_size(bytes_per_sec, ftroughput);
-        printf(" %s/s", ftroughput);
+        nprintf(" %s/s", ftroughput);
         if (bytes_per_sec && fdinfo.size - fdinfo.pos > 0) {
             print_eta((fdinfo.size - fdinfo.pos) / bytes_per_sec);
         }
     }
 
 
-    printf("\n");
+    nprintf("\n");
 
     // Need to work on window width when using screen/watch/...
     //~ printf("    [");
     //~ print_bar(perc, ws.ws_col-6);
     //~ printf("]\n");
 }
-if (flag_monitor || flag_monitor_continous)
-    printf("---\n");
 return 0;
+}
+
+void int_handler(int sig) {
+  if(flag_monitor || flag_monitor_continous)
+    endwin();
+  exit(0);
 }
 
 // TODO: deal with --help
@@ -510,13 +554,27 @@ parse_options(argc,argv);
 
 // ws.ws_row, ws.ws_col
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-
-do {
-    monitor_processes(&nb_pid);
-    if(flag_monitor_continous && !nb_pid) {
-        usleep(1000000 * throughput_wait_secs);
+if(flag_monitor || flag_monitor_continous) {
+    if((mainwin = initscr()) == NULL ) {
+        fprintf(stderr, "Error initialising ncurses.\n");
+        exit(EXIT_FAILURE);
     }
-} while ((flag_monitor && nb_pid) || flag_monitor_continous);
-
+    if (!throughput_wait_secs) {
+      flag_throughput = 1;
+      throughput_wait_secs = 1;
+    }
+    signal(SIGINT, int_handler);
+    do {
+        monitor_processes(&nb_pid);
+	refresh();
+	if(flag_monitor_continous && !nb_pid) {
+	  usleep(1000000 * throughput_wait_secs);
+	}
+    } while ((flag_monitor && nb_pid) || flag_monitor_continous);
+    endwin();
+}
+else {
+    monitor_processes(&nb_pid);
+}
 return 0;
 }
