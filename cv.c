@@ -70,8 +70,10 @@ int pid_count=0;
 int nb_processes = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
 char exe[1024];
 pid_t *pids = malloc(nb_processes * sizeof(pid_t));
+int i;
+
 proc_listpids(PROC_ALL_PIDS, 0, pids, nb_processes);
-for(int i = 0; i < nb_processes; ++i) {
+for(i = 0; i < nb_processes; ++i) {
     if (pids[i] == 0) {
         continue;
     }
@@ -155,8 +157,9 @@ if (bufferSize < 0) {
 struct proc_fdinfo *procFDInfo = (struct proc_fdinfo *)malloc(bufferSize);
 proc_pidinfo(pid, PROC_PIDLISTFDS, 0, procFDInfo, bufferSize);
 int numberOfProcFDs = bufferSize / PROC_PIDLISTFD_SIZE;
+int i;
 
-for(int i = 0; i < numberOfProcFDs; i++) {
+for(i = 0; i < numberOfProcFDs; i++) {
     if(procFDInfo[i].proc_fdtype == PROX_FDTYPE_VNODE) {
         struct vnode_fdinfowithpath vnodeInfo;
         proc_pidfdinfo(pid, procFDInfo[i].proc_fd, PROC_PIDFDVNODEPATHINFO, &vnodeInfo, PROC_PIDFDVNODEPATHINFO_SIZE);
