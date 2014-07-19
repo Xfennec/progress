@@ -594,7 +594,7 @@ if(flag_monitor || flag_monitor_continous) {
         fprintf(stderr, "Error initialising ncurses.\n");
         exit(EXIT_FAILURE);
     }
-    if (!throughput_wait_secs) {
+    if (!flag_throughput) {
       flag_throughput = 1;
       throughput_wait_secs = 1;
     }
