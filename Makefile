@@ -5,7 +5,7 @@ PREFIX = $(DESTDIR)/usr/local
 BINDIR = $(PREFIX)/bin
 
 $(OBJ) : cv.o sizes.o hlist.o
-	gcc -Wall $(LFLAGS) $^ -o $@
+	gcc -Wall $^ -o $@ $(LFLAGS)
 %.o : %.c
 	gcc $(CFLAGS) -c $^
 clean :
