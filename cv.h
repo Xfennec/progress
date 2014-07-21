@@ -6,6 +6,8 @@
 #include <sys/param.h>
 #include <sys/time.h>
 
+#include "hlist.h"
+
 #define CV_VERSION         "0.3"
 
 #define PROC_PATH       "/proc"
@@ -31,6 +33,9 @@ typedef struct pidinfo_t {
 typedef struct result_t {
     pidinfo_t pid;
     fdinfo_t fd;
+    hlist *hbegin;
+    hlist *hend;
+    int hsize;
 } result_t;
 
 #endif
