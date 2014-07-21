@@ -243,8 +243,11 @@ if(S_ISBLK(stat_buf.st_mode)) {
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
         if (!flag_quiet)
             nperror("ioctl (get_fdinfo)");
+        close(fd);
         return 0;
     }
+
+    close(fd);
 } else {
     fd_info->size = stat_buf.st_size;
 }
@@ -269,6 +272,7 @@ while(fgets(line, LINE_LEN - 1, fp) != NULL) {
     }
 }
 
+fclose(fp);
 return 1;
 }
 
