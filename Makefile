@@ -1,13 +1,13 @@
 OBJ=cv
-CFLAGS=-g -Wall -D_FILE_OFFSET_BITS=64
+CFLAGS+=-g -Wall -D_FILE_OFFSET_BITS=64
 LFLAGS=-lncurses -lm
 PREFIX = $(DESTDIR)/usr/local
 BINDIR = $(PREFIX)/bin
 
 $(OBJ) : cv.o sizes.o hlist.o
-	gcc -Wall $^ -o $@ $(LFLAGS)
+	$(CC) -Wall $^ -o $@ $(LFLAGS)
 %.o : %.c
-	gcc $(CFLAGS) -c $^
+	$(CC) $(CFLAGS) -c $^
 clean :
 	rm -f *.o $(OBJ)
 install : $(OBJ)
