@@ -1,6 +1,6 @@
 OBJ=cv
 CFLAGS+=-g -Wall -D_FILE_OFFSET_BITS=64
-LFLAGS=-lncurses -lm
+LFLAGS=-lncurses -lm -ltinfo
 PREFIX = $(DESTDIR)/usr/local
 BINDIR = $(PREFIX)/bin
 
