@@ -116,7 +116,7 @@ while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
 
     if(stat(fullpath_dir, &stat_buf) == -1) {
-        if (!flag_debug)
+        if (flag_debug)
             nperror("stat (find_pids_by_binary_name)");
         continue;
     }
@@ -169,7 +169,7 @@ if(!proc) {
 while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
     if(stat(fullpath, &stat_buf) == -1) {
-        if (!flag_debug)
+        if (flag_debug)
             nperror("stat (find_fd_for_pid)");
         continue;
     }
@@ -225,7 +225,7 @@ else {
 
 if(stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
-    if (!flag_debug)
+    if (flag_debug)
         nperror("stat (get_fdinfo)");
     return 0;
 }
@@ -236,13 +236,13 @@ if(S_ISBLK(stat_buf.st_mode)) {
     fd = open(fd_info->name, O_RDONLY);
 
     if (fd < 0) {
-        if (!flag_debug)
+        if (flag_debug)
             nperror("open (get_fdinfo)");
         return 0;
     }
 
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
-        if (!flag_debug)
+        if (flag_debug)
             nperror("ioctl (get_fdinfo)");
         close(fd);
         return 0;
@@ -260,7 +260,7 @@ fp = fopen(fdpath, "rt");
 gettimeofday(&fd_info->tv, &tz);
 
 if(!fp) {
-    if (!flag_debug)
+    if (flag_debug)
         nperror("fopen (get_fdinfo)");
     return 0;
 }
