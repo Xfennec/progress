@@ -8,7 +8,7 @@
 
 #include "hlist.h"
 
-#define CV_VERSION         "0.4"
+#define CV_VERSION         "0.5"
 
 #define PROC_PATH       "/proc"
 #define MAX_PIDS        32
