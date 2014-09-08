@@ -15,7 +15,7 @@ $(OBJ) : cv.o sizes.o hlist.o
 clean :
 	rm -f *.o $(OBJ)
 
-ofast : 
+ofast :
 	$(CC) $(CFLAGS) -c cv.c
 	$(CC) $(CFLAGS) -c sizes.c
 	$(CC) $(CFLAGS) -c hlist.c
