@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2013 Xfennec, CQFD Corp.
+   Copyright (C) 2014 Xfennec, CQFD Corp.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@ char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", 
 char *proc_specifiq = NULL;
 WINDOW *mainwin;
 signed char flag_quiet = 0;
+signed char flag_debug = 0;
 signed char flag_throughput = 0;
 signed char flag_monitor = 0;
 signed char flag_monitor_continous = 0;
@@ -149,7 +150,7 @@ while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
 
     if(stat(fullpath_dir, &stat_buf) == -1) {
-        if (!flag_quiet)
+        if (flag_debug)
             nperror("stat (find_pids_by_binary_name)");
         continue;
     }
@@ -201,7 +202,7 @@ for(i = 0; i < numberOfProcFDs; i++) {
         struct vnode_fdinfowithpath vnodeInfo;
         proc_pidfdinfo(pid, procFDInfo[i].proc_fd, PROC_PIDFDVNODEPATHINFO, &vnodeInfo, PROC_PIDFDVNODEPATHINFO_SIZE);
         if (stat(vnodeInfo.pvip.vip_path, &stat_buf) < 0) {
-            if (!flag_quiet)
+            if (flag_debug)
                 perror("sstat");
             continue;
         }
@@ -242,7 +243,7 @@ if(!proc) {
 while((direntp = readdir(proc)) != NULL) {
     snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
     if(stat(fullpath, &stat_buf) == -1) {
-        if (!flag_quiet)
+        if (flag_debug)
             nperror("stat (find_fd_for_pid)");
         continue;
     }
@@ -308,7 +309,7 @@ else {
 
 if(stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
-    if (!flag_quiet)
+    if (flag_debug)
         nperror("stat (get_fdinfo)");
     return 0;
 }
@@ -319,7 +320,7 @@ if(S_ISBLK(stat_buf.st_mode)) {
     fd = open(fd_info->name, O_RDONLY);
 
     if (fd < 0) {
-        if (!flag_quiet)
+        if (flag_debug)
             nperror("open (get_fdinfo)");
         return 0;
     }
@@ -331,7 +332,7 @@ if(S_ISBLK(stat_buf.st_mode)) {
     bs = 0;
     bc = 0;
     if (ioctl(fd, DKIOCGETBLOCKSIZE, &bs) < 0 ||  ioctl(fd, DKIOCGETBLOCKCOUNT, &bc) < 0) {
-        if (!flag_quiet)
+        if (flag_debug)
             perror("ioctl (get_fdinfo)");
         return 0;
     }
@@ -339,7 +340,7 @@ if(S_ISBLK(stat_buf.st_mode)) {
     printf("Size: %lld\n", fd_info->size);
 #else
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
-        if (!flag_quiet)
+        if (flag_debug)
             nperror("ioctl (get_fdinfo)");
         close(fd);
         return 0;
@@ -361,7 +362,7 @@ fp = fopen(fdpath, "rt");
 gettimeofday(&fd_info->tv, &tz);
 
 if(!fp) {
-    if (!flag_quiet)
+    if (flag_debug)
         nperror("fopen (get_fdinfo)");
     return 0;
 }
@@ -402,6 +403,7 @@ void parse_options(int argc, char *argv[])
 static struct option long_options[] = {
     {"version",           no_argument,       0, 'v'},
     {"quiet",             no_argument,       0, 'q'},
+    {"debug",             no_argument,       0, 'd'},
     {"wait",              no_argument,       0, 'w'},
     {"wait-delay",        required_argument, 0, 'W'},
     {"monitor",           no_argument,       0, 'm'},
@@ -411,7 +413,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqwmMhc:W:";
+static char *options_string = "vqdwmMhc:W:";
 int c,i;
 int option_index = 0;
 
@@ -438,7 +440,8 @@ while(1) {
             printf("\n");
             printf("Usage: %s [-vqwmMh] [-W] [-c command]\n",argv[0]);
             printf("  -v --version            show version\n");
-            printf("  -q --quiet              hides some warning/error messages\n");
+            printf("  -q --quiet              hides all messages\n");
+            printf("  -d --debug              shows all warning/error messages\n");
             printf("  -w --wait               estimate I/O throughput and ETA (slower display)\n");
             printf("  -W --wait-delay secs    wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -m --monitor            loop while monitored processes are still running\n");
@@ -451,6 +454,10 @@ while(1) {
 
         case 'q':
             flag_quiet = 1;
+            break;
+
+        case 'd':
+            flag_debug = 1;
             break;
 
         case 'c':
@@ -684,7 +691,6 @@ void int_handler(int sig) {
   exit(0);
 }
 
-// TODO: deal with --help
 
 int main(int argc, char *argv[])
 {

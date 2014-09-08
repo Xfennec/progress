@@ -27,6 +27,7 @@ How do you build it ?
 make && make install
 ```
 
+It depends on ncurses library, you may have to install corresponding packages.
 
 How do you run it ?
 -------------------
