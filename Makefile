@@ -19,6 +19,7 @@ ofast :
 	$(CC) $(CFLAGS) -c cv.c
 	$(CC) $(CFLAGS) -c sizes.c
 	$(CC) $(CFLAGS) -c hlist.c
+	$(CC) -Wall *.o -o $(OBJ) $(LFLAGS)
 
 install : $(OBJ)
 	@echo "Installing program to $(DESTDIR)$(BINDIR) ..."
