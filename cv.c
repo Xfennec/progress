@@ -51,7 +51,10 @@
 #include "sizes.h"
 #include "hlist.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat", "grep", "fgrep", "egrep", "cut", "sort", NULL};
+char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
+    "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "sha1sum",
+    "sha224sum", "sha256sum", "sha384sum", "sha512sum", NULL
+};
 char *proc_specifiq = NULL;
 WINDOW *mainwin;
 signed char flag_quiet = 0;
