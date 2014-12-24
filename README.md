@@ -53,6 +53,10 @@ A few examples. You can:
 
         cv -c httpd
 
+* launch and monitor any heavy command using `$!`:
+
+        cp bigfile newfile & cv -mp $!
+
 and much more.
 
 How does it work?
