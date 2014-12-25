@@ -45,11 +45,12 @@
 #include "hlist.h"
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
-    "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "sha1sum",
-    "sha224sum", "sha256sum", "sha384sum", "sha512sum", NULL
+	"grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "sha1sum",
+	"sha224sum", "sha256sum", "sha384sum", "sha512sum", NULL
 };
-char *proc_specifiq = NULL;
-WINDOW *mainwin;
+
+char *proc_specifiq_name = NULL;
+pid_t proc_specifiq_pid = 0;
 signed char flag_quiet = 0;
 signed char flag_debug = 0;
 signed char flag_throughput = 0;
@@ -57,9 +58,11 @@ signed char flag_monitor = 0;
 signed char flag_monitor_continous = 0;
 double throughput_wait_secs = 1;
 
+WINDOW *mainwin;
+
 signed char is_numeric(char *str)
 {
-	while(*str) {
+	while (*str) {
 		if(!isdigit(*str))
 			return 0;
 		str++;
@@ -97,6 +100,25 @@ void nperror(const char *s) {
 		perror(s);
 }
 
+int find_pid_by_id(pid_t pid, pidinfo_t *pid_list)
+{
+	char fullpath_exe[MAXPATHLEN + 1];
+	char exe[MAXPATHLEN + 1];
+	ssize_t len;
+
+	snprintf(fullpath_exe, MAXPATHLEN, "%s/%i/exe", PROC_PATH, pid);
+
+	len=readlink(fullpath_exe, exe, MAXPATHLEN);
+	if (len != -1)
+		exe[len] = 0;
+	else
+		return 0;
+
+	pid_list[0].pid = pid;
+	strcpy(pid_list[0].name, basename(exe));
+	return 1;
+}
+
 int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 {
 	DIR *proc;
@@ -109,25 +131,25 @@ int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 	int pid_count=0;
 
 	proc=opendir(PROC_PATH);
-	if(!proc) {
+	if (!proc) {
 		nperror("opendir");
 		nfprintf(stderr,"Can't open %s\n",PROC_PATH);
 		exit(EXIT_FAILURE);
 	}
 
-	while((direntp = readdir(proc)) != NULL) {
+	while ((direntp = readdir(proc)) != NULL) {
 		snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
 
-		if(stat(fullpath_dir, &stat_buf) == -1) {
+		if (stat(fullpath_dir, &stat_buf) == -1) {
 			if (flag_debug)
 				nperror("stat (find_pids_by_binary_name)");
 			continue;
 		}
 
-		if((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
+		if ((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
 			snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
 			len=readlink(fullpath_exe, exe, MAXPATHLEN);
-			if(len != -1)
+			if (len != -1)
 				exe[len] = 0;
 			else {
 				// Will be mostly "Permission denied"
@@ -135,11 +157,11 @@ int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 				continue;
 			}
 
-			if(!strcmp(basename(exe), bin_name)) {
-				pid_list[pid_count].pid=atol(direntp->d_name);
+			if (!strcmp(basename(exe), bin_name)) {
+				pid_list[pid_count].pid = atol(direntp->d_name);
 				strcpy(pid_list[pid_count].name, bin_name);
 				pid_count++;
-				if(pid_count==max_pids)
+				if(pid_count == max_pids)
 					break;
 			}
 		}
@@ -162,16 +184,16 @@ int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
 
 	snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
 
-	proc=opendir(path_dir);
-	if(!proc) {
+	proc = opendir(path_dir);
+	if (!proc) {
 		nperror("opendir");
 		nfprintf(stderr,"Can't open %s\n",path_dir);
 		return 0;
 	}
 
-	while((direntp = readdir(proc)) != NULL) {
+	while ((direntp = readdir(proc)) != NULL) {
 		snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
-		if(stat(fullpath, &stat_buf) == -1) {
+		if (stat(fullpath, &stat_buf) == -1) {
 			if (flag_debug)
 				nperror("stat (find_fd_for_pid)");
 			continue;
@@ -182,21 +204,21 @@ int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
 			continue;
 
 		// try to read link ...
-		len=readlink(fullpath, link_dest, MAXPATHLEN);
-		if(len != -1)
+		len = readlink(fullpath, link_dest, MAXPATHLEN);
+		if (len != -1)
 			link_dest[len] = 0;
 		else
 			continue;
 
 		// try to stat link target (invalid link ?)
-		if(stat(link_dest, &stat_buf) == -1)
+		if (stat(link_dest, &stat_buf) == -1)
 			continue;
 
 		// OK, we've found a potential interesting file.
 
 		fd_list[count++] = atoi(direntp->d_name);
 		//~ printf("[debug] %s\n",fullpath);
-		if(count == max_fd)
+		if (count == max_fd)
 			break;
 	}
 
@@ -219,21 +241,21 @@ signed char get_fdinfo(pid_t pid, int fdnum, fdinfo_t *fd_info)
 	snprintf(fdpath, MAXPATHLEN, "%s/%d/fd/%d", PROC_PATH, pid, fdnum);
 
 	len=readlink(fdpath, fd_info->name, MAXPATHLEN);
-	if(len != -1)
+	if (len != -1)
 		fd_info->name[len] = 0;
 	else {
 		//~ nperror("readlink");
 		return 0;
 	}
 
-	if(stat(fd_info->name, &stat_buf) == -1) {
+	if (stat(fd_info->name, &stat_buf) == -1) {
 		//~ printf("[debug] %i - %s\n",pid,fd_info->name);
 		if (flag_debug)
 			nperror("stat (get_fdinfo)");
 		return 0;
 	}
 
-	if(S_ISBLK(stat_buf.st_mode)) {
+	if (S_ISBLK(stat_buf.st_mode)) {
 		int fd;
 
 		fd = open(fd_info->name, O_RDONLY);
@@ -262,15 +284,15 @@ signed char get_fdinfo(pid_t pid, int fdnum, fdinfo_t *fd_info)
 	fp = fopen(fdpath, "rt");
 	gettimeofday(&fd_info->tv, &tz);
 
-	if(!fp) {
+	if (!fp) {
 		if (flag_debug)
 			nperror("fopen (get_fdinfo)");
 		return 0;
 	}
 
-	while(fgets(line, LINE_LEN - 1, fp) != NULL) {
+	while (fgets(line, LINE_LEN - 1, fp) != NULL) {
 		line[4]=0;
-		if(!strcmp(line, "pos:")) {
+		if (!strcmp(line, "pos:")) {
 			fd_info->pos = atoll(line + 5);
 			break;
 		}
@@ -287,13 +309,13 @@ void print_bar(float perc, int char_available)
 
 	num = (char_available / 100.0) * perc;
 
-	for(i = 0 ; i < num-1 ; i++) {
+	for (i = 0 ; i < num-1 ; i++) {
 		putchar('=');
 	}
 	putchar('>');
 	i++;
 
-	for( ; i < char_available ; i++)
+	for ( ; i < char_available ; i++)
 		putchar(' ');
 
 }
@@ -311,10 +333,11 @@ void parse_options(int argc, char *argv[])
 		{"monitor-continous", no_argument,       0, 'M'},
 		{"help",              no_argument,       0, 'h'},
 		{"command",           required_argument, 0, 'c'},
+		{"pid",               required_argument, 0, 'p'},
 		{0, 0, 0, 0}
 	};
 
-	static char *options_string = "vqdwmMhc:W:";
+	static char *options_string = "vqdwmMhc:p:W:";
 	int c,i;
 	int option_index = 0;
 
@@ -325,7 +348,7 @@ void parse_options(int argc, char *argv[])
 		if (c == -1)
 			break;
 
-		switch(c) {
+		switch (c) {
 			case 'v':
 				printf("cv version %s\n",CV_VERSION);
 				exit(EXIT_SUCCESS);
@@ -349,6 +372,7 @@ void parse_options(int argc, char *argv[])
 				printf("  -M --monitor-continous  like monitor but never stop (similar to watch %s)\n", argv[0]);
 				printf("  -h --help               this message\n");
 				printf("  -c --command cmd        monitor only this command name (ex: firefox)\n");
+				printf("  -p --pid id             monitor only this pid\n");
 
 				exit(EXIT_SUCCESS);
 				break;
@@ -362,7 +386,11 @@ void parse_options(int argc, char *argv[])
 				break;
 
 			case 'c':
-				proc_specifiq = strdup(optarg);
+				proc_specifiq_name = strdup(optarg);
+				break;
+
+			case 'p':
+				proc_specifiq_pid = atof(optarg);
 				break;
 
 			case 'w':
@@ -405,11 +433,12 @@ void print_eta(time_t seconds)
 	nprintf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
-void copy_and_clean_results(result_t *results, int result_count, char copy) {
+void copy_and_clean_results(result_t *results, int result_count, char copy)
+{
 	static result_t old_results[MAX_RESULTS];
 	static int old_result_count = 0;
 
-	if(copy) {
+	if (copy) {
 		int i;
 		for (i = 0; i < old_result_count; ++i) {
 			int j;
@@ -433,7 +462,8 @@ void copy_and_clean_results(result_t *results, int result_count, char copy) {
 	}
 }
 
-int monitor_processes(int *nb_pid) {
+int monitor_processes(int *nb_pid)
+{
 	int pid_count, fd_count, result_count;
 	int i,j;
 	pidinfo_t pidinfo_list[MAX_PIDS];
@@ -447,11 +477,25 @@ int monitor_processes(int *nb_pid) {
 	float perc;
 	result_t results[MAX_RESULTS];
 	signed char still_there;
+	signed char search_all = 1;
 
 	pid_count = 0;
 
-	if(!proc_specifiq) {
-		for(i = 0 ; proc_names[i] ; i++) {
+	if (proc_specifiq_name) {
+		pid_count += find_pids_by_binary_name(proc_specifiq_name,
+				pidinfo_list + pid_count,
+				MAX_PIDS - pid_count);
+		search_all = 0;
+	}
+
+	if (proc_specifiq_pid) {
+		pid_count += find_pid_by_id(proc_specifiq_pid,
+				pidinfo_list + pid_count);
+		search_all = 0;
+	}
+
+	if (search_all) {
+		for (i = 0 ; proc_names[i] ; i++) {
 			pid_count += find_pids_by_binary_name(proc_names[i],
 					pidinfo_list + pid_count,
 					MAX_PIDS - pid_count);
@@ -460,23 +504,19 @@ int monitor_processes(int *nb_pid) {
 				break;
 			}
 		}
-	} else {
-		pid_count += find_pids_by_binary_name(proc_specifiq,
-				pidinfo_list + pid_count,
-				MAX_PIDS - pid_count);
 	}
 
 	*nb_pid = pid_count;
 
-	if(!pid_count) {
-		if(flag_quiet)
+	if (!pid_count) {
+		if (flag_quiet)
 			return 0;
 		if (flag_monitor || flag_monitor_continous) {
 			clear();
 			refresh();
 		}
 		nfprintf(stderr,"No command currently running: ");
-		for(i = 0 ; proc_names[i] ; i++) {
+		for (i = 0 ; proc_names[i] ; i++) {
 			nfprintf(stderr,"%s, ", proc_names[i]);
 		}
 		nfprintf(stderr,"exiting.\n");
@@ -485,22 +525,22 @@ int monitor_processes(int *nb_pid) {
 
 	result_count = 0;
 
-	for(i = 0 ; i < pid_count ; i++) {
+	for (i = 0 ; i < pid_count ; i++) {
 		fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
 
 		max_size = 0;
 
 		// let's find the biggest opened file
-		for(j = 0 ; j < fd_count ; j++) {
+		for (j = 0 ; j < fd_count ; j++) {
 			get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
 
-			if(fdinfo.size > max_size) {
+			if (fdinfo.size > max_size) {
 				biggest_fd = fdinfo;
 				max_size = fdinfo.size;
 			}
 		}
 
-		if(!max_size) { // nothing found
+		if (!max_size) { // nothing found
 			nprintf("[%5d] %s inactive/flushing/streaming/...\n",
 					pidinfo_list[i].pid,
 					pidinfo_list[i].name);
@@ -586,7 +626,8 @@ int monitor_processes(int *nb_pid) {
 	return 0;
 }
 
-void int_handler(int sig) {
+void int_handler(int sig)
+{
 	if(flag_monitor || flag_monitor_continous)
 		endwin();
 	exit(0);
@@ -602,8 +643,8 @@ int main(int argc, char *argv[])
 
 	// ws.ws_row, ws.ws_col
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-	if(flag_monitor || flag_monitor_continous) {
-		if((mainwin = initscr()) == NULL ) {
+	if (flag_monitor || flag_monitor_continous) {
+		if ((mainwin = initscr()) == NULL ) {
 			fprintf(stderr, "Error initialising ncurses.\n");
 			exit(EXIT_FAILURE);
 		}
