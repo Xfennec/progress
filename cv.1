@@ -4,7 +4,26 @@
 cv \- Coreutils Viewer
 .SH SYNOPSIS
 .B cv
-.I [-vqwmMh] [-W] [-c command]
+[
+.B \-qdwmM
+] [
+.B \-W 
+.I secs
+] [
+.B \-c 
+.I command
+] [
+.B \-p 
+.I pid
+]
+.br
+.B cv -v
+|
+.B \-\-version
+.br
+.B cv \-h
+|
+.B \-\-help
 .br
 
 .SH DESCRIPTION
@@ -14,12 +33,11 @@ This tool can be described as a Tiny Dirty Linux Only* C command that looks for 
 commands (cp, mv, dd, tar, gzip/gunzip, cat, ...) currently running on your system and displays
 the percentage of copied data.
 
-It can now also display an estimated throughput (using -w flag).
+It can now also display an estimated throughput (using
+.B \-w
+flag).
 
 .SH OPTIONS
-.TP
-.B \-v (\-\-version)
-show version
 .TP
 .B \-q (\-\-quiet)
 hides all messages
@@ -31,20 +49,56 @@ shows all warning/error messages
 estimate I/O throughput and ETA (slower display)
 .TP
 .B \-W (\-\-wait\-delay secs)
-wait 'secs' seconds for I/O estimation (implies -w)
+wait 'secs' seconds for I/O estimation (implies
+.B \-w
+)
 .TP
 .B \-m (\-\-monitor)
 loop while monitored processes are still running
 .TP
 .B \-M (\-\-monitor\-continous)
-like monitor but never stop (similar to watch cv)
-.TP
-.B \-h (\-\-help)
-this message
+like monitor but never stop (similar to 
+.B watch cv
+)
 .TP
 .B \-c (\-\-command cmd)
 monitor only this command name (ex: firefox)
+.TP
+.B \-p (\-\-pid id)
+monitor only this numeric process ID (ex: \`pidof firefox\`)
+.TP
+.B \-v (\-\-version)
+show program version and exit
+.TP
+.B \-h (\-\-help)
+display help message and exit
 
+.SH EXAMPLES
+
+Continuously monitor all current and upcoming instances of coreutils commands:
+.RS
+
+.B watch cv \-q
+
+.RE
+See how your download is progressing
+.RS
+
+.B watch cv \-wc firefox
+
+.RE
+Look at your Web server activity
+.RS
+
+.B cv \-c httpd
+
+.RE
+Launch and monitor any heavy command using \$\!
+.RS
+
+.B cp bigfile newfile & cv \-mp \$\!
+
+.RE
 .SH BUGS
 Please report bugs at: http://github.com/Xfennec/cv/issues
 
