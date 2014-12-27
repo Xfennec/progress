@@ -362,17 +362,17 @@ while(1) {
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n");
-            printf("Usage: %s [-vqwmMh] [-W] [-c command]\n",argv[0]);
-            printf("  -v --version            show version\n");
+            printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n",argv[0]);
             printf("  -q --quiet              hides all messages\n");
             printf("  -d --debug              shows all warning/error messages\n");
             printf("  -w --wait               estimate I/O throughput and ETA (slower display)\n");
             printf("  -W --wait-delay secs    wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -m --monitor            loop while monitored processes are still running\n");
             printf("  -M --monitor-continous  like monitor but never stop (similar to watch %s)\n", argv[0]);
-            printf("  -h --help               this message\n");
             printf("  -c --command cmd        monitor only this command name (ex: firefox)\n");
-            printf("  -p --pid id             monitor only this pid\n");
+            printf("  -p --pid id             monitor only this process ID (ex: `pidof firefox`)\n");
+            printf("  -v --version            show program version and exit\n");
+            printf("  -h --help               display this help and exit\n");
 
             exit(EXIT_SUCCESS);
             break;
