@@ -24,10 +24,13 @@ merge the support upstream.
 
 How do you build it?
 --------------------
+* Prerequist
 
-    make && make install
+It depends on library ncurses, you may have to install corresponding packages (`apt-get install libncurses5-dev`).
 
-It depends on library ncurses, you may have to install corresponding packages.
+* Build
+
+`make && make install` 
 
 How do you run it?
 ------------------
