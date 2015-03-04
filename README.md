@@ -27,7 +27,7 @@ How do you build it?
 
     make && make install
 
-It depends on library ncurses, you may have to install corresponding packages.
+It depends on library ncurses, you may have to install corresponding packages (may be something like 'libncurses5-dev' or 'ncurses-devel').
 
 How do you run it?
 ------------------
