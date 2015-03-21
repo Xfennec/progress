@@ -59,6 +59,7 @@ signed char flag_throughput = 0;
 signed char flag_monitor = 0;
 signed char flag_monitor_continous = 0;
 double throughput_wait_secs = 1;
+static int numfiles = 1;
 
 WINDOW *mainwin;
 
@@ -334,13 +335,14 @@ void parse_options(int argc, char *argv[])
 		{"wait-delay",        required_argument, 0, 'W'},
 		{"monitor",           no_argument,       0, 'm'},
 		{"monitor-continous", no_argument,       0, 'M'},
+		{"files-per-process", required_argument, 0, 'n'},
 		{"help",              no_argument,       0, 'h'},
 		{"command",           required_argument, 0, 'c'},
 		{"pid",               required_argument, 0, 'p'},
 		{0, 0, 0, 0}
 	};
 
-	static char *options_string = "vqdwmMhc:p:W:";
+	static char *options_string = "vqdwmMn:hc:p:W:";
 	int c, i;
 	int option_index = 0;
 
@@ -365,13 +367,14 @@ void parse_options(int argc, char *argv[])
 				for (i = 0; proc_names[i]; i++)
 					printf("%s ", proc_names[i]);
 				printf("\n");
-				printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n", argv[0]);
+				printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid] [-n num]\n", argv[0]);
 				printf("  -q --quiet              hides all messages\n");
 				printf("  -d --debug              shows all warning/error messages\n");
 				printf("  -w --wait               estimate I/O throughput and ETA (slower display)\n");
 				printf("  -W --wait-delay secs    wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
 				printf("  -m --monitor            loop while monitored processes are still running\n");
 				printf("  -M --monitor-continous  like monitor but never stop (similar to watch %s)\n", argv[0]);
+				printf("  -n --files-per-process num number of files to monitor (default: 1)\n");
 				printf("  -c --command cmd        monitor only this command name (ex: firefox)\n");
 				printf("  -p --pid id             monitor only this process ID (ex: `pidof firefox`)\n");
 				printf("  -v --version            show program version and exit\n");
@@ -413,6 +416,10 @@ void parse_options(int argc, char *argv[])
 			case 'W':
 				flag_throughput = 1;
 				throughput_wait_secs = atof(optarg);
+				break;
+
+			case 'n':
+				numfiles = atoi(optarg);
 				break;
 
 			case '?':
@@ -467,15 +474,27 @@ void copy_and_clean_results(result_t *results, int result_count, char copy)
 	}
 }
 
+static int cmp_fdinfos(const void *f1, const void *f2)
+{
+	const fdinfo_t *f1_ = f1;
+	const fdinfo_t *f2_ = f2;
+	off_t diff = f2_->size - f1_->size;
+	if (diff < 0)
+		return -1;
+	else if (diff > 0)
+		return 1;
+	else
+		return 0;
+}
+
 int monitor_processes(int *nb_pid)
 {
 	int pid_count, fd_count, result_count;
-	int i,j;
+	int i, j, k;
 	pidinfo_t pidinfo_list[MAX_PIDS];
 	fdinfo_t fdinfo;
-	fdinfo_t biggest_fd;
+	fdinfo_t fdinfos[MAX_FD_PER_PID];
 	int fdnum_list[MAX_FD_PER_PID];
-	off_t max_size;
 	char fsize[64];
 	char fpos[64];
 	char ftroughput[64];
@@ -537,19 +556,13 @@ int monitor_processes(int *nb_pid)
 	for (i = 0; i < pid_count; i++) {
 		fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
 
-		max_size = 0;
-
 		// let's find the biggest opened file
-		for (j = 0; j < fd_count; j++) {
-			get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
+		for (j = 0; j < fd_count; j++)
+			get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfos[j]);
 
-			if (fdinfo.size > max_size) {
-				biggest_fd = fdinfo;
-				max_size = fdinfo.size;
-			}
-		}
+		qsort(fdinfos, fd_count, sizeof(fdinfos[0]), cmp_fdinfos);
 
-		if (!max_size) { // nothing found
+		if (fd_count == 0 || fdinfos[0].size == 0) { // nothing found
 			nprintf("[%5d] %s inactive/flushing/streaming/...\n",
 					pidinfo_list[i].pid,
 					pidinfo_list[i].name);
@@ -558,12 +571,30 @@ int monitor_processes(int *nb_pid)
 
 		// We've our biggest_fd now, let's store the result
 		results[result_count].pid = pidinfo_list[i];
-		results[result_count].fd = biggest_fd;
+		results[result_count].fd = fdinfos[0];
 		results[result_count].hbegin = NULL;
 		results[result_count].hend = NULL;
 		results[result_count].hsize = 0;
 
 		result_count++;
+
+		int found = 1;
+		for (k = 1; k < fd_count && found < numfiles; ++k) {
+			if (fdinfos[k].pos == fdinfos[k - 1].pos &&
+					fdinfos[k].size == fdinfos[k - 1].size &&
+					strcmp(fdinfos[k].name, fdinfos[k - 1].name) == 0)
+				continue;
+
+			results[result_count].pid = pidinfo_list[i];
+			results[result_count].fd = fdinfos[k];
+			results[result_count].hbegin = NULL;
+			results[result_count].hend = NULL;
+			results[result_count].hsize = 0;
+
+			result_count++;
+
+			found++;
+		}
 	}
 
 	// wait a bit, so we can estimate the throughput
