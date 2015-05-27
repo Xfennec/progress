@@ -4,7 +4,7 @@ cv - Coreutils Viewer
 What is it?
 -----------
 
-This tool can be described as a **Tiny,** Dirty, Linux-Only¹ C command
+This tool can be described as a **Tiny**, Dirty, Linux-and-OSX-Only C command
 that looks for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip,
 cat, etc.) currently running on your system and displays the
 percentage of copied data.
@@ -18,9 +18,6 @@ _(After many requests: the colors in the shell come from [powerline-shell](https
 It's probably easy to add a progress, show estimated time, and, with a
 bit more work, provide a "top-like" mode with more accurate
 information.
-
-¹: Note: a [Mac OS X port is available](https://github.com/BestPig/cv) until we
-merge the support upstream.
 
 How do you build it?
 --------------------
