@@ -18,24 +18,24 @@
 //~ #define MINMUM_SIZE     8192
 
 typedef struct fdinfo_t {
-    int num;
-    off_t size;
-    off_t pos;
-    char name[MAXPATHLEN + 1];
-    struct timeval tv;
+	int num;
+	off_t size;
+	off_t pos;
+	char name[MAXPATHLEN + 1];
+	struct timeval tv;
 } fdinfo_t;
 
 typedef struct pidinfo_t {
-    pid_t pid;
-    char name[MAXPATHLEN + 1];
+	pid_t pid;
+	char name[MAXPATHLEN + 1];
 } pidinfo_t;
 
 typedef struct result_t {
-    pidinfo_t pid;
-    fdinfo_t fd;
-    hlist *hbegin;
-    hlist *hend;
-    int hsize;
+	pidinfo_t pid;
+	fdinfo_t fd;
+	hlist *hbegin;
+	hlist *hend;
+	int hsize;
 } result_t;
 
 #endif

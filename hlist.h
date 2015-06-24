@@ -2,9 +2,9 @@
 #define CV_HLIST_H
 
 typedef struct hlist {
-  struct hlist *prev;
-  struct hlist *next;
-  int value;
+	struct hlist *prev;
+	struct hlist *next;
+	int value;
 } hlist;
 
 void set_hlist_size(double throughput_wait_secs);
