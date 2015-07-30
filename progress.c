@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2014 Xfennec, CQFD Corp.
+   Copyright (C) 2015 Xfennec, CQFD Corp.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@
 # include <linux/fs.h>
 #endif
 
-#include "cv.h"
+#include "progress.h"
 #include "sizes.h"
 #include "hlist.h"
 
@@ -468,12 +468,12 @@ while(1) {
 
     switch (c) {
         case 'v':
-            printf("cv version %s\n",CV_VERSION);
+            printf("progress version %s\n",PROGRESS_VERSION);
             exit(EXIT_SUCCESS);
             break;
 
         case 'h':
-            printf("cv - Coreutils Viewer\n");
+            printf("progress - Coreutils Viewer\n");
             printf("---------------------\n");
             printf("Shows running coreutils basic commands and displays stats.\n");
             printf("Supported commands: ");

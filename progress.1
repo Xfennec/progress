@@ -1,33 +1,33 @@
-.TH CV 1 "September 01, 2014" "cv"
+.TH PROGRESS 1 "July 30, 2015" "progress"
 
 .SH NAME
-cv \- Coreutils Viewer
+progress \- Coreutils Progress Viewer
 .SH SYNOPSIS
-.B cv
+.B progress
 [
 .B \-qdwmM
 ] [
-.B \-W 
+.B \-W
 .I secs
 ] [
-.B \-c 
+.B \-c
 .I command
 ] [
-.B \-p 
+.B \-p
 .I pid
 ]
 .br
-.B cv -v
+.B progress -v
 |
 .B \-\-version
 .br
-.B cv \-h
+.B progress \-h
 |
 .B \-\-help
 .br
 
 .SH DESCRIPTION
-This manual page briefly documents the \fBcv\fP command.
+This manual page briefly documents the \fBprogress\fP command.
 .PP
 This tool can be described as a Tiny, Dirty, Linux-Only C command
 that looks for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip,
@@ -59,8 +59,8 @@ wait 'secs' seconds for I/O estimation (implies
 loop while monitored processes are still running
 .TP
 .B \-M (\-\-monitor\-continous)
-like monitor but never stop (similar to 
-.B watch cv
+like monitor but never stop (similar to
+.B watch progress
 )
 .TP
 .B \-c (\-\-command cmd)
@@ -80,32 +80,32 @@ display help message and exit
 Continuously monitor all current and upcoming instances of coreutils commands
 .RS
 
-.B watch cv \-q
+.B watch progress \-q
 
 .RE
 See how your download is progressing
 .RS
 
-.B watch cv \-wc firefox
+.B watch progress \-wc firefox
 
 .RE
 Look at your Web server activity
 .RS
 
-.B cv \-c httpd
+.B progress \-c httpd
 
 .RE
 Launch and monitor any heavy command using \$\!
 .RS
 
-.B cp bigfile newfile & cv \-mp \$\!
+.B cp bigfile newfile & progress \-mp \$\!
 
 .RE
 .SH BUGS
-Please report bugs at: http://github.com/Xfennec/cv/issues
+Please report bugs at: http://github.com/Xfennec/progress/issues
 
 .SH HOMEPAGE
-http://github.com/Xfennec/cv
+http://github.com/Xfennec/progress
 
 .SH AUTHOR
 This manual page was written by Thomas Zimmermann <bugs@vdm-design.de>,

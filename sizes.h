@@ -1,5 +1,5 @@
-#ifndef CV_SIZES_H
-#define CV_SIZES_H
+#ifndef PROGRESS_SIZES_H
+#define PROGRESS_SIZES_H
 
 #include <inttypes.h>
 #include <stdio.h>

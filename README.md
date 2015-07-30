@@ -1,4 +1,4 @@
-cv - Coreutils Viewer
+progress - Coreutils Progress Viewer (formerly known as cv)
 =====================
 
 What is it?
@@ -11,7 +11,7 @@ percentage of copied data.
 
 It can now also estimate throughput (using flag `-w`).
 
-![cv screenshot with cp and mv](https://raw.github.com/Xfennec/cv/master/capture.png)
+![progress screenshot with cp and mv](https://raw.github.com/Xfennec/progress/master/capture.png)
 
 _(After many requests: the colors in the shell come from [powerline-shell](https://github.com/milkbikis/powerline-shell). Try it, it's cool.)_
 
@@ -29,7 +29,7 @@ It depends on library ncurses, you may have to install corresponding packages (m
 How do you run it?
 ------------------
 
-Just launch the binary, `cv`.
+Just launch the binary, `progress`.
 
 
 What can I do with it?
@@ -40,19 +40,19 @@ A few examples. You can:
 * monitor all current and upcoming instances of coreutils commands in
   a simple window:
 
-        watch cv -q
+        watch progress -q
 
 * see how your download is progressing:
 
-        watch cv -wc firefox
+        watch progress -wc firefox
 
 * look at your Web server activity:
 
-        cv -c httpd
+        progress -c httpd
 
 * launch and monitor any heavy command using `$!`:
 
-        cp bigfile newfile & cv -mp $!
+        cp bigfile newfile & progress -mp $!
 
 and much more.
 

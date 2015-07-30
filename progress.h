@@ -1,5 +1,5 @@
-#ifndef CV_MAIN_H
-#define CV_MAIN_H
+#ifndef PROGRESS_MAIN_H
+#define PROGRESS_MAIN_H
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -8,7 +8,7 @@
 
 #include "hlist.h"
 
-#define CV_VERSION         "0.7"
+#define PROGRESS_VERSION         "0.7"
 
 #define PROC_PATH       "/proc"
 #define MAX_PIDS        32

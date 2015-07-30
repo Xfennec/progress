@@ -1,5 +1,5 @@
-#ifndef CV_HLIST_H
-#define CV_HLIST_H
+#ifndef PROGRESS_HLIST_H
+#define PROGRESS_HLIST_H
 
 typedef struct hlist {
   struct hlist *prev;
