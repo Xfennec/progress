@@ -8,7 +8,7 @@
 
 #include "hlist.h"
 
-#define PROGRESS_VERSION         "0.7"
+#define PROGRESS_VERSION         "0.8"
 
 #define PROC_PATH       "/proc"
 #define MAX_PIDS        32
