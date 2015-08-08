@@ -53,7 +53,8 @@
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
     "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "sha1sum",
-    "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb", NULL
+    "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb", "vcp", 
+    "vmv", NULL
 };
 
 static int proc_specifiq_name_cnt;
