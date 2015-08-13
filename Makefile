@@ -18,5 +18,5 @@ install : $(OBJ)
 	echo "Failed. Try "make PREFIX=~ install" ?"
 	@echo "Installing manpage to $(DESTDIR)$(MANDIR) ..."
 	@mkdir -p $(DESTDIR)$(MANDIR)
-	@install -pm0644 progress.1 $(DESTDIR)$(MANDIR)/ || \
+	@install -pm0644 $(OBJ).1 $(DESTDIR)$(MANDIR)/ || \
 	echo "Failed. Try "make PREFIX=~ install" ?"
