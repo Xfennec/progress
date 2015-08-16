@@ -638,9 +638,8 @@ if (!pid_count) {
     }
     nfprintf(stderr,"No command currently running: ");
 
-    int len_proc_names = sizeof(proc_names) / sizeof(proc_names[0]);
     for (i = 0 ; proc_names[i] ; i++) {
-        if (i == len_proc_names - 2) // if last proc name, finish with a period (.)
+        if (i == DIM(proc_names) - 2) // if last proc name, finish with a period (.)
             nfprintf(stderr,"%s. ", proc_names[i]);
         else // comma separate instead
             nfprintf(stderr,"%s, ", proc_names[i]);
