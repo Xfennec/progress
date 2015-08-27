@@ -1,12 +1,12 @@
 OBJ = progress
 override CFLAGS += -g -Wall -D_FILE_OFFSET_BITS=64
-override LFLAGS += -lncurses -lm
+override LDFLAGS += -lncurses -lm
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man/man1
 
 $(OBJ) : progress.o sizes.o hlist.o
-	$(CC) -Wall $^ -o $@ $(LFLAGS)
+	$(CC) -Wall $^ -o $@ $(LDFLAGS)
 %.o : %.c
 	$(CC) $(CFLAGS) -c $^
 clean :
