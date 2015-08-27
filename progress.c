@@ -638,9 +638,9 @@ if (!pid_count) {
     }
     nfprintf(stderr,"No command currently running: ");
     for (i = 0 ; proc_names[i] ; i++) {
-        nfprintf(stderr,"%s, ", proc_names[i]);
+        nfprintf(stderr,"%s%c ", proc_names[i], (proc_names[i+1]?',':'.'));
     }
-    nfprintf(stderr,"exiting.\n");
+    nfprintf(stderr,"\nExiting.\n");
     return 0;
 }
 
