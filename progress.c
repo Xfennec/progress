@@ -683,7 +683,6 @@ if (flag_throughput)
     usleep(1000000 * throughput_wait_secs);
 if (flag_monitor || flag_monitor_continous) {
     clear();
-    refresh();
 }
 copy_and_clean_results(results, result_count, 1);
 for (i = 0 ; i < result_count ; i++) {
@@ -742,6 +741,9 @@ for (i = 0 ; i < result_count ; i++) {
     //~ printf("    [");
     //~ print_bar(perc, ws.ws_col-6);
     //~ printf("]\n");
+}
+if (flag_monitor || flag_monitor_continous) {
+    refresh();
 }
 copy_and_clean_results(results, result_count, 0);
 return 0;
