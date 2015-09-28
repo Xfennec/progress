@@ -475,11 +475,11 @@ while(1) {
         case 'h':
             printf("progress - Coreutils Viewer\n");
             printf("---------------------\n");
-            printf("Shows running coreutils basic commands and displays stats.\n");
-            printf("Supported commands: ");
+            printf("Shows running coreutils basic commands and displays stats.\n\n");
+            printf("Commands monitored by default:\n");
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
-            printf("\n");
+            printf("\n\n");
             printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n",argv[0]);
             printf("  -q --quiet              hides all messages\n");
             printf("  -d --debug              shows all warning/error messages\n");
