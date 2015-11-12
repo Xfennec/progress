@@ -636,11 +636,23 @@ if (!pid_count) {
         clear();
 	refresh();
     }
-    nfprintf(stderr,"No command currently running: ");
-    for (i = 0 ; proc_names[i] ; i++) {
-        nfprintf(stderr,"%s%c ", proc_names[i], (proc_names[i+1]?',':'.'));
+    if (proc_specifiq_pid) {
+        nfprintf(stderr, "No such pid: %d, ", proc_specifiq_pid);
     }
-    nfprintf(stderr,"\nExiting.\n");
+    if (proc_specifiq_name_cnt)
+    {
+        nfprintf(stderr, "No such command(s) running: ");
+        for (i = 0; i < proc_specifiq_name_cnt; ++i) {
+            nfprintf(stderr, "%s, ", proc_specifiq_name[i]);
+        }
+    }
+    if (!proc_specifiq_pid && !proc_specifiq_name_cnt) {
+        nfprintf(stderr,"No command currently running: ");
+        for (i = 0 ; proc_names[i] ; i++) {
+            nfprintf(stderr,"%s, ", proc_names[i]);
+        }
+    }
+    nfprintf(stderr,"or wrong permissions.\nExiting.\n");
     return 0;
 }
 

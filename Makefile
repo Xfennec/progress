@@ -20,3 +20,6 @@ install : $(OBJ)
 	@mkdir -p $(DESTDIR)$(MANDIR)
 	@install -pm0644 $(OBJ).1 $(DESTDIR)$(MANDIR)/ || \
 	echo "Failed. Try "make PREFIX=~ install" ?"
+uninstall :
+	@rm -f $(DESTDIR)$(BINDIR)/$(OBJ)
+	@rm -f $(DESTDIR)$(MANDIR)/$(OBJ).1
