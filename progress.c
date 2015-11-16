@@ -81,14 +81,21 @@ return 1;
 
 void nprintf(char *format, ...)
 {
-va_list args;
+    va_list args;
+    va_start(args, format);
+    if (flag_monitor || flag_monitor_continous)
+		vw_printw(mainwin, format, args);
+    else
+		vprintf(format, args);
+    va_end(args);
+}
 
-va_start(args, format);
-if (flag_monitor || flag_monitor_continous)
-    vw_printw(mainwin, format, args);
-else
-    vprintf(format, args);
-va_end(args);
+void naddch(char ch)
+{
+    if(flag_monitor || flag_monitor_continous)
+        waddch(mainwin, ch);
+    else
+        putchar(ch);
 }
 
 void nfprintf(FILE *file, char *format, ...) {
@@ -422,20 +429,20 @@ return 1;
 
 void print_bar(float perc, int char_available)
 {
-int i;
-int num;
-
-num = (char_available / 100.0) * perc;
-
-for (i = 0 ; i < num-1 ; i++) {
-    putchar('=');
-}
-putchar('>');
-i++;
-
-for ( ; i < char_available ; i++)
-    putchar(' ');
-
+    int i;
+    int num;
+    num = (char_available / 100.0) * perc;   
+    naddch('[');
+    for (i = 0 ; i < num-1 ; i++)
+    {
+        naddch('=');
+    }
+    naddch('>');
+    i++;
+    for ( ; i < char_available ; i++)
+        naddch(' ');
+    naddch(']');
+    naddch('\n');
 }
 
 
@@ -582,7 +589,7 @@ else {
   }
 }
 
-int monitor_processes(int *nb_pid)
+int monitor_processes(int *nb_pid, struct winsize ws)
 {
 int pid_count, fd_count, result_count;
 int i,j;
@@ -632,10 +639,16 @@ if (search_all) {
 if (!pid_count) {
     if (flag_quiet)
         return 0;
-    if (flag_monitor || flag_monitor_continous) {
+
+	flag_throughput = 0;
+	flag_monitor = 0;
+	flag_monitor_continous = 0;
+	    
+	if (flag_monitor || flag_monitor_continous) {
         clear();
-	refresh();
-    }
+		//refresh();		//Again no need to refresh here
+    }	
+	
     if (proc_specifiq_pid) {
         nfprintf(stderr, "No such pid: %d, ", proc_specifiq_pid);
     }
@@ -647,13 +660,18 @@ if (!pid_count) {
         }
     }
     if (!proc_specifiq_pid && !proc_specifiq_name_cnt) {
+		
         nfprintf(stderr,"No command currently running: ");
         for (i = 0 ; proc_names[i] ; i++) {
             nfprintf(stderr,"%s, ", proc_names[i]);
         }
     }
     nfprintf(stderr,"or wrong permissions.\nExiting.\n");
-    return 0;
+	if (flag_monitor || flag_monitor_continous) {
+		refresh();
+		//usleep(1000000 * throughput_wait_secs);
+    }
+	return 0;
 }
 
 result_count = 0;
@@ -691,8 +709,10 @@ for (i = 0 ; i < pid_count ; i++) {
 }
 
 // wait a bit, so we can estimate the throughput
-if (flag_throughput)
-    usleep(1000000 * throughput_wait_secs);
+/*if (flag_throughput)              //Wait after showing the result and thus removing the flickering
+    	usleep(1000000 * throughput_wait_secs);
+*/
+
 if (flag_monitor || flag_monitor_continous) {
     clear();
 }
@@ -719,7 +739,7 @@ for (i = 0 ; i < result_count ; i++) {
 
     }
 
-    nprintf("[%5d] %s %s %.1f%% (%s / %s)",
+    nprintf("[%5d] %s %s \n%.1f%% (%s/%s)",
         results[i].pid.pid,
         results[i].pid.name,
         results[i].fd.name,
@@ -746,17 +766,15 @@ for (i = 0 ; i < result_count ; i++) {
         }
     }
 
-
-    nprintf("\n");
-
-    // Need to work on window width when using screen/watch/...
-    //~ printf("    [");
-    //~ print_bar(perc, ws.ws_col-6);
-    //~ printf("]\n");
+	nprintf("\n");
+    print_bar(perc, ws.ws_col-10);
 }
-if (flag_monitor || flag_monitor_continous) {
+
+if (flag_monitor || flag_monitor_continous)
     refresh();
-}
+if (flag_throughput)
+    usleep(1000000 * throughput_wait_secs);
+
 copy_and_clean_results(results, result_count, 0);
 return 0;
 }
@@ -784,23 +802,23 @@ if (flag_monitor || flag_monitor_continous) {
         exit(EXIT_FAILURE);
     }
     if (!flag_throughput) {
-      flag_throughput = 1;
-      throughput_wait_secs = 1;
+    	flag_throughput = 1;
+    	throughput_wait_secs = 1;
     }
     set_hlist_size(throughput_wait_secs);
     signal(SIGINT, int_handler);
     do {
-        monitor_processes(&nb_pid);
+        monitor_processes(&nb_pid, ws);
         refresh();
-        if(flag_monitor_continous && !nb_pid) {
-          usleep(1000000 * throughput_wait_secs);
-        }
+        if(flag_monitor_continous && !nb_pid) 
+	    	usleep(1000000 * throughput_wait_secs);
+
     } while ((flag_monitor && nb_pid) || flag_monitor_continous);
     endwin();
 }
 else {
     set_hlist_size(throughput_wait_secs);
-    monitor_processes(&nb_pid);
+    monitor_processes(&nb_pid, ws);
 }
 return 0;
 }
