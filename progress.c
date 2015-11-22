@@ -773,7 +773,7 @@ for (i = 0 ; i < result_count ; i++) {
 if (flag_monitor || flag_monitor_continous)
     refresh();
 if (flag_throughput)
-    usleep(1000000 * throughput_wait_secs);
+    usleep(1000000 * throughput_wait_secs);         //Sleep after all the calculations
 
 copy_and_clean_results(results, result_count, 0);
 return 0;
