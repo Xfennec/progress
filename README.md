@@ -10,9 +10,7 @@ cat, etc.) currently running on your system and displays the
 **percentage** and **progress** of copied data. It can also show **estimated time** and **throughput**,
 and provides a "top-like" mode (monitoring).
 
-![progress screenshot with cp and mv](https://raw.github.com/Xfennec/progress/master/capture.png)
-
-_(After many requests: the colors in the shell come from [powerline-shell](https://github.com/milkbikis/powerline-shell). Try it, it's cool.)_
+![progress screenshot with cp and mv](https://github.com/n0noob/progress/blob/master/capture.png)
 
 Formerly known as cv (Coreutils Viewer).
 
