@@ -7,7 +7,7 @@ What is it?
 This tool can be described as a **Tiny**, Dirty, Linux-and-OSX-Only C command
 that looks for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip,
 cat, etc.) currently running on your system and displays the
-**percentage** of copied data. It can also show **estimated time** and **throughput**,
+**percentage** and **progress** of copied data. It can also show **estimated time** and **throughput**,
 and provides a "top-like" mode (monitoring).
 
 ![progress screenshot with cp and mv](https://raw.github.com/Xfennec/progress/master/capture.png)
