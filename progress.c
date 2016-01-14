@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2015 Xfennec, CQFD Corp.
+   Copyright (C) 2016 Xfennec, CQFD Corp.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ signed char flag_quiet = 0;
 signed char flag_debug = 0;
 signed char flag_throughput = 0;
 signed char flag_monitor = 0;
-signed char flag_monitor_continous = 0;
+signed char flag_monitor_continuous = 0;
 double throughput_wait_secs = 1;
 
 WINDOW *mainwin;
@@ -84,7 +84,7 @@ void nprintf(char *format, ...)
 va_list args;
 
 va_start(args, format);
-if (flag_monitor || flag_monitor_continous)
+if (flag_monitor || flag_monitor_continuous)
     vw_printw(mainwin, format, args);
 else
     vprintf(format, args);
@@ -95,7 +95,7 @@ void nfprintf(FILE *file, char *format, ...) {
 va_list args;
 
 va_start(args, format);
-if (flag_monitor || flag_monitor_continous)
+if (flag_monitor || flag_monitor_continuous)
     vw_printw(mainwin, format, args);
 else
     vfprintf(file, format, args);
@@ -103,7 +103,7 @@ va_end(args);
 }
 
 void nperror(const char *s) {
-if (flag_monitor || flag_monitor_continous)
+if (flag_monitor || flag_monitor_continuous)
     printw("%s:%s", s, strerror(errno));
 else
     perror(s);
@@ -442,16 +442,16 @@ for ( ; i < char_available ; i++)
 void parse_options(int argc, char *argv[])
 {
 static struct option long_options[] = {
-    {"version",           no_argument,       0, 'v'},
-    {"quiet",             no_argument,       0, 'q'},
-    {"debug",             no_argument,       0, 'd'},
-    {"wait",              no_argument,       0, 'w'},
-    {"wait-delay",        required_argument, 0, 'W'},
-    {"monitor",           no_argument,       0, 'm'},
-    {"monitor-continous", no_argument,       0, 'M'},
-    {"help",              no_argument,       0, 'h'},
-    {"command",           required_argument, 0, 'c'},
-    {"pid",               required_argument, 0, 'p'},
+    {"version",              no_argument,       0, 'v'},
+    {"quiet",                no_argument,       0, 'q'},
+    {"debug",                no_argument,       0, 'd'},
+    {"wait",                 no_argument,       0, 'w'},
+    {"wait-delay",           required_argument, 0, 'W'},
+    {"monitor",              no_argument,       0, 'm'},
+    {"monitor-continuously", no_argument,       0, 'M'},
+    {"help",                 no_argument,       0, 'h'},
+    {"command",              required_argument, 0, 'c'},
+    {"pid",                  required_argument, 0, 'p'},
     {0, 0, 0, 0}
 };
 
@@ -481,16 +481,16 @@ while(1) {
                 printf("%s ", proc_names[i]);
             printf("\n\n");
             printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n",argv[0]);
-            printf("  -q --quiet              hides all messages\n");
-            printf("  -d --debug              shows all warning/error messages\n");
-            printf("  -w --wait               estimate I/O throughput and ETA (slower display)\n");
-            printf("  -W --wait-delay secs    wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
-            printf("  -m --monitor            loop while monitored processes are still running\n");
-            printf("  -M --monitor-continous  like monitor but never stop (similar to watch %s)\n", argv[0]);
-            printf("  -c --command cmd        monitor only this command name (ex: firefox)\n");
-            printf("  -p --pid id             monitor only this process ID (ex: `pidof firefox`)\n");
-            printf("  -v --version            show program version and exit\n");
-            printf("  -h --help               display this help and exit\n");
+            printf("  -q --quiet                 hides all messages\n");
+            printf("  -d --debug                 shows all warning/error messages\n");
+            printf("  -w --wait                  estimate I/O throughput and ETA (slower display)\n");
+            printf("  -W --wait-delay secs       wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
+            printf("  -m --monitor               loop while monitored processes are still running\n");
+            printf("  -M --monitor-continuously  like monitor but never stop (similar to watch %s)\n", argv[0]);
+            printf("  -c --command cmd           monitor only this command name (ex: firefox)\n");
+            printf("  -p --pid id                monitor only this process ID (ex: `pidof firefox`)\n");
+            printf("  -v --version               show program version and exit\n");
+            printf("  -h --help                  display this help and exit\n");
 
             exit(EXIT_SUCCESS);
             break;
@@ -522,7 +522,7 @@ while(1) {
             break;
 
         case 'M':
-            flag_monitor_continous = 1;
+            flag_monitor_continuous = 1;
             break;
 
         case 'W':
@@ -632,7 +632,7 @@ if (search_all) {
 if (!pid_count) {
     if (flag_quiet)
         return 0;
-    if (flag_monitor || flag_monitor_continous) {
+    if (flag_monitor || flag_monitor_continuous) {
         clear();
 	refresh();
     }
@@ -693,7 +693,7 @@ for (i = 0 ; i < pid_count ; i++) {
 // wait a bit, so we can estimate the throughput
 if (flag_throughput)
     usleep(1000000 * throughput_wait_secs);
-if (flag_monitor || flag_monitor_continous) {
+if (flag_monitor || flag_monitor_continuous) {
     clear();
 }
 copy_and_clean_results(results, result_count, 1);
@@ -754,7 +754,7 @@ for (i = 0 ; i < result_count ; i++) {
     //~ print_bar(perc, ws.ws_col-6);
     //~ printf("]\n");
 }
-if (flag_monitor || flag_monitor_continous) {
+if (flag_monitor || flag_monitor_continuous) {
     refresh();
 }
 copy_and_clean_results(results, result_count, 0);
@@ -763,7 +763,7 @@ return 0;
 
 void int_handler(int sig)
 {
-if(flag_monitor || flag_monitor_continous)
+if(flag_monitor || flag_monitor_continuous)
     endwin();
 exit(0);
 }
@@ -778,7 +778,7 @@ parse_options(argc,argv);
 
 // ws.ws_row, ws.ws_col
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-if (flag_monitor || flag_monitor_continous) {
+if (flag_monitor || flag_monitor_continuous) {
     if ((mainwin = initscr()) == NULL ) {
         fprintf(stderr, "Error initialising ncurses.\n");
         exit(EXIT_FAILURE);
@@ -792,10 +792,10 @@ if (flag_monitor || flag_monitor_continous) {
     do {
         monitor_processes(&nb_pid);
         refresh();
-        if(flag_monitor_continous && !nb_pid) {
+        if(flag_monitor_continuous && !nb_pid) {
           usleep(1000000 * throughput_wait_secs);
         }
-    } while ((flag_monitor && nb_pid) || flag_monitor_continous);
+    } while ((flag_monitor && nb_pid) || flag_monitor_continuous);
     endwin();
 }
 else {
