@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2015 Xfennec, CQFD Corp.
+   Copyright (C) 2016 Xfennec, CQFD Corp.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
