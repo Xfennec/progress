@@ -32,7 +32,6 @@
 #define MAX_RESULTS     32
 #define MAX_FD_PER_PID  512
 #define LINE_LEN        256
-//~ #define MINMUM_SIZE     8192
 
 typedef struct fdinfo_t {
     int num;
