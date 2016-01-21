@@ -58,6 +58,8 @@ char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
 
 static int proc_specifiq_name_cnt;
 static char **proc_specifiq_name;
+static int ignore_file_list_cnt;
+static char **ignore_file_list;
 
 pid_t proc_specifiq_pid = 0;
 signed char flag_quiet = 0;
@@ -107,6 +109,16 @@ if (flag_monitor || flag_monitor_continuous)
     printw("%s:%s", s, strerror(errno));
 else
     perror(s);
+}
+
+
+signed char is_ignored_file(char *str)
+{
+int i;
+for (i = 0 ; i < ignore_file_list_cnt ; i++)
+    if (!strcmp(ignore_file_list[i], str))
+        return 1;
+return 0;
 }
 
 #ifdef __APPLE__
@@ -247,7 +259,10 @@ for(i = 0; i < numberOfProcFDs; i++) {
                 perror("sstat");
             continue;
         }
-        if(!S_ISREG(stat_buf.st_mode) && !S_ISBLK(stat_buf.st_mode))
+        if (!S_ISREG(stat_buf.st_mode) && !S_ISBLK(stat_buf.st_mode))
+            continue;
+
+        if (is_ignored_file(vnodeInfo.pvip.vip_path))
             continue;
 
         // OK, we've found a potential interesting file.
@@ -302,6 +317,9 @@ while ((direntp = readdir(proc)) != NULL) {
 
     // try to stat link target (invalid link ?)
     if (stat(link_dest, &stat_buf) == -1)
+        continue;
+
+    if (is_ignored_file(fullpath) || is_ignored_file(link_dest))
         continue;
 
     // OK, we've found a potential interesting file.
@@ -452,10 +470,11 @@ static struct option long_options[] = {
     {"help",                 no_argument,       0, 'h'},
     {"command",              required_argument, 0, 'c'},
     {"pid",                  required_argument, 0, 'p'},
+    {"ignore-file",          required_argument, 0, 'i'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMhc:p:W:";
+static char *options_string = "vqdwmMhc:p:W:i:";
 int c,i;
 int option_index = 0;
 
@@ -475,8 +494,8 @@ while(1) {
         case 'h':
             printf("progress - Coreutils Viewer\n");
             printf("---------------------\n");
-            printf("Shows running coreutils basic commands and displays stats.\n\n");
-            printf("Commands monitored by default:\n");
+            printf("Shows progress on file manipulations (cp, mv, dd, ...)\n\n");
+            printf("Monitored commands (default):\n");
             for(i = 0 ; proc_names[i] ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n\n");
@@ -489,9 +508,11 @@ while(1) {
             printf("  -M --monitor-continuously  like monitor but never stop (similar to watch %s)\n", argv[0]);
             printf("  -c --command cmd           monitor only this command name (ex: firefox)\n");
             printf("  -p --pid id                monitor only this process ID (ex: `pidof firefox`)\n");
+            printf("  -i --ignore-file file      do not report process if using file\n");
             printf("  -v --version               show program version and exit\n");
             printf("  -h --help                  display this help and exit\n");
-
+            printf("\n\n");
+            printf("Multiple options allowed for: -c -i\n");
             exit(EXIT_SUCCESS);
             break;
 
@@ -503,9 +524,15 @@ while(1) {
             flag_debug = 1;
             break;
 
+        case 'i':
+            ignore_file_list_cnt++;
+            ignore_file_list = realloc(ignore_file_list, ignore_file_list_cnt * sizeof(char *));
+            ignore_file_list[ignore_file_list_cnt - 1] = strdup(optarg);
+            break;
+
         case 'c':
             proc_specifiq_name_cnt++;
-            proc_specifiq_name = realloc(proc_specifiq_name, proc_specifiq_name_cnt * sizeof(proc_specifiq_name[0]));
+            proc_specifiq_name = realloc(proc_specifiq_name, proc_specifiq_name_cnt * sizeof(char *));
             proc_specifiq_name[proc_specifiq_name_cnt - 1] = strdup(optarg);
             break;
 
@@ -674,9 +701,11 @@ for (i = 0 ; i < pid_count ; i++) {
     }
 
     if (!max_size) { // nothing found
-        nprintf("[%5d] %s inactive/flushing/streaming/...\n",
+    // this display is the root of too many confusion for the users, let's
+    // remove it. And it does not play well with --i option.
+/*        nprintf("[%5d] %s inactive/flushing/streaming/...\n",
                 pidinfo_list[i].pid,
-                pidinfo_list[i].name);
+                pidinfo_list[i].name);*/
         continue;
     }
 
