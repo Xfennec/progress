@@ -1,4 +1,4 @@
-.TH PROGRESS 1 "July 30, 2015" "progress"
+.TH PROGRESS 1 "January 22, 2016" "progress"
 
 .SH NAME
 progress \- Coreutils Progress Viewer
@@ -67,13 +67,22 @@ like monitor but never stop (similar to
 monitor only this command name (ex: firefox)
 .TP
 .B \-p (\-\-pid id)
-monitor only this numeric process ID (ex: \`pidof firefox\`)
+monitor only this numeric process ID (ex: \`pidof firefox\`). This option can
+be used multiple times on the command line.
+.TP
+.B \-i (\-\-ignore-file file)
+do not report a process for 'file'. If the file does not exist yet, you must
+give a full and clean absolute path. This option can be used multiple times
+on the command line.
 .TP
 .B \-v (\-\-version)
 show program version and exit
 .TP
 .B \-h (\-\-help)
 display help message and exit
+
+.SH ENVIRONMENT
+It's possible to give permanent options using PROGRESS_ARGS environment variable.
 
 .SH EXAMPLES
 

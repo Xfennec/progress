@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <curses.h>
 
+#include <wordexp.h>
 #include <getopt.h>
 
 #include <sys/ioctl.h>
@@ -477,6 +478,7 @@ static struct option long_options[] = {
 static char *options_string = "vqdwmMhc:p:W:i:";
 int c,i;
 int option_index = 0;
+char *rp;
 
 while(1) {
     c = getopt_long (argc, argv, options_string, long_options, &option_index);
@@ -512,7 +514,7 @@ while(1) {
             printf("  -v --version               show program version and exit\n");
             printf("  -h --help                  display this help and exit\n");
             printf("\n\n");
-            printf("Multiple options allowed for: -c -i\n");
+            printf("Multiple options allowed for: -c -i. Use PROGRESS_ARGS for permanent arguments.\n");
             exit(EXIT_SUCCESS);
             break;
 
@@ -525,9 +527,13 @@ while(1) {
             break;
 
         case 'i':
+            rp = realpath(optarg, NULL);
             ignore_file_list_cnt++;
             ignore_file_list = realloc(ignore_file_list, ignore_file_list_cnt * sizeof(char *));
-            ignore_file_list[ignore_file_list_cnt - 1] = strdup(optarg);
+            if (rp)
+                ignore_file_list[ignore_file_list_cnt - 1] = rp;
+            else
+                ignore_file_list[ignore_file_list_cnt - 1] = strdup(optarg); // file does not exist yet, it seems
             break;
 
         case 'c':
@@ -679,7 +685,7 @@ if (!pid_count) {
             nfprintf(stderr,"%s, ", proc_names[i]);
         }
     }
-    nfprintf(stderr,"or wrong permissions.\nExiting.\n");
+    nfprintf(stderr,"or wrong permissions.\n");
     return 0;
 }
 
@@ -784,6 +790,8 @@ for (i = 0 ; i < result_count ; i++) {
     //~ printf("]\n");
 }
 if (flag_monitor || flag_monitor_continuous) {
+    if (!result_count)
+        nprintf("No PID(s) currently monitored\n");
     refresh();
 }
 copy_and_clean_results(results, result_count, 0);
@@ -797,13 +805,32 @@ if(flag_monitor || flag_monitor_continuous)
 exit(0);
 }
 
-
 int main(int argc, char *argv[])
 {
 pid_t nb_pid;
 struct winsize ws;
+wordexp_t env_wordexp;
+char *env_progress_args;
+char *env_progress_args_full;
+
+env_progress_args = getenv("PROGRESS_ARGS");
 
 parse_options(argc,argv);
+if (env_progress_args) {
+    int full_len;
+
+    // prefix with (real) argv[0]
+    // argv[0] + ' ' + env_progress_args + '\0'
+    full_len = strlen(argv[0]) + 1 + strlen(env_progress_args) + 1;
+    env_progress_args_full = malloc(full_len * sizeof(char));
+    sprintf(env_progress_args_full, "%s %s", argv[0], env_progress_args);
+
+    if (wordexp(env_progress_args_full, &env_wordexp, 0)) {
+        fprintf(stderr,"Unable to parse PROGRESS_ARGS environment variable.\n");
+        exit(EXIT_FAILURE);
+    }
+    parse_options(env_wordexp.we_wordc,env_wordexp.we_wordv);
+}
 
 // ws.ws_row, ws.ws_col
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
