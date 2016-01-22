@@ -25,7 +25,7 @@
 
 #include "hlist.h"
 
-#define PROGRESS_VERSION         "0.11"
+#define PROGRESS_VERSION         "0.12"
 
 #define PROC_PATH       "/proc"
 #define MAX_PIDS        32
