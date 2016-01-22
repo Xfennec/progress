@@ -480,6 +480,13 @@ int c,i;
 int option_index = 0;
 char *rp;
 
+printf("argc=%d\n", argc);
+for (i = 0 ; i < argc ; i++)
+    printf("[%s] ", argv[i]);
+printf("\n\n");
+
+optind = 1; // reset getopt
+
 while(1) {
     c = getopt_long (argc, argv, options_string, long_options, &option_index);
 
