@@ -83,6 +83,7 @@ display help message and exit
 
 .SH ENVIRONMENT
 It's possible to give permanent options using PROGRESS_ARGS environment variable.
+See example below. Command line arguments take precedence over environment.
 
 .SH EXAMPLES
 
@@ -108,6 +109,13 @@ Launch and monitor any heavy command using $!
 .RS
 
 .B cp bigfile newfile & progress \-mp $!
+
+
+.RE
+Use environment variable to set permanent (multiple) arguments
+.RS
+
+.B export PROGRESS_ARGS='-M \-\-ignore-file ~/.xsession-errors'
 
 .RE
 .SH BUGS

@@ -817,7 +817,6 @@ char *env_progress_args_full;
 
 env_progress_args = getenv("PROGRESS_ARGS");
 
-parse_options(argc,argv);
 if (env_progress_args) {
     int full_len;
 
@@ -833,6 +832,7 @@ if (env_progress_args) {
     }
     parse_options(env_wordexp.we_wordc,env_wordexp.we_wordv);
 }
+parse_options(argc,argv);
 
 // ws.ws_row, ws.ws_col
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
