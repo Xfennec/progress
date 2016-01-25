@@ -633,6 +633,7 @@ float perc;
 result_t results[MAX_RESULTS];
 signed char still_there;
 signed char search_all = 1;
+static signed char first_pass = 1;
 
 pid_count = 0;
 
@@ -688,6 +689,7 @@ if (!pid_count) {
         }
     }
     nfprintf(stderr,"or wrong permissions.\n");
+    first_pass = 0;
     return 0;
 }
 
@@ -728,7 +730,7 @@ for (i = 0 ; i < pid_count ; i++) {
 }
 
 // wait a bit, so we can estimate the throughput
-if (flag_throughput)
+if (flag_throughput && !first_pass)
     usleep(1000000 * throughput_wait_secs);
 if (flag_monitor || flag_monitor_continuous) {
     clear();
@@ -736,7 +738,7 @@ if (flag_monitor || flag_monitor_continuous) {
 copy_and_clean_results(results, result_count, 1);
 for (i = 0 ; i < result_count ; i++) {
 
-    if (flag_throughput) {
+    if (flag_throughput && !first_pass) {
         still_there = get_fdinfo(results[i].pid.pid, results[i].fd.num, &fdinfo);
         if (still_there && strcmp(results[i].fd.name, fdinfo.name))
             still_there = 0; // still there, but it's not the same file !
@@ -764,7 +766,7 @@ for (i = 0 ; i < result_count ; i++) {
         fpos,
         fsize);
 
-    if (flag_throughput && still_there) {
+    if (flag_throughput && still_there && !first_pass) {
         // results[i] vs fdinfo
         long long usec_diff;
         off_t byte_diff;
@@ -797,6 +799,7 @@ if (flag_monitor || flag_monitor_continuous) {
     refresh();
 }
 copy_and_clean_results(results, result_count, 0);
+first_pass = 0;
 return 0;
 }
 
