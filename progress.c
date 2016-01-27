@@ -645,18 +645,29 @@ static signed char first_pass = 1;
 pid_count = 0;
 
 if (proc_specifiq_name_cnt) {
-    for (i = 0 ; i < proc_specifiq_name_cnt ; ++i)
+    search_all = 0;
+    for (i = 0 ; i < proc_specifiq_name_cnt ; ++i) {
         pid_count += find_pids_by_binary_name(proc_specifiq_name[i],
                                               pidinfo_list + pid_count,
                                               MAX_PIDS - pid_count);
-    search_all = 0;
+        if(pid_count >= MAX_PIDS) {
+            nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+            return 0;
+        }
+    }
 }
 
 if (proc_specifiq_pid) {
-    for (i = 0 ; i < proc_specifiq_pid_cnt ; ++i)
+    search_all = 0;
+    for (i = 0 ; i < proc_specifiq_pid_cnt ; ++i) {
         pid_count += find_pid_by_id(proc_specifiq_pid[i],
                                     pidinfo_list + pid_count);
-    search_all = 0;
+
+        if(pid_count >= MAX_PIDS) {
+            nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+            return 0;
+        }
+    }
 }
 
 if (search_all) {
@@ -666,7 +677,7 @@ if (search_all) {
                                               MAX_PIDS - pid_count);
         if(pid_count >= MAX_PIDS) {
             nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
-            break;
+            return 0;
         }
     }
 }
