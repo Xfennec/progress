@@ -60,12 +60,14 @@ char *proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
     NULL
 };
 
+// static means initialized to 0/NULL (C standard, §6.7.8/10)
 static int proc_specifiq_name_cnt;
 static char **proc_specifiq_name;
 static int ignore_file_list_cnt;
 static char **ignore_file_list;
+static int proc_specifiq_pid_cnt;
+static pid_t *proc_specifiq_pid;
 
-pid_t proc_specifiq_pid = 0;
 signed char flag_quiet = 0;
 signed char flag_debug = 0;
 signed char flag_throughput = 0;
@@ -519,7 +521,7 @@ while(1) {
             printf("  -v --version               show program version and exit\n");
             printf("  -h --help                  display this help and exit\n");
             printf("\n\n");
-            printf("Multiple options allowed for: -c -i. Use PROGRESS_ARGS for permanent arguments.\n");
+            printf("Multiple options allowed for: -c -p -i. Use PROGRESS_ARGS for permanent arguments.\n");
             exit(EXIT_SUCCESS);
             break;
 
@@ -548,7 +550,9 @@ while(1) {
             break;
 
         case 'p':
-            proc_specifiq_pid = atof(optarg);
+            proc_specifiq_pid_cnt++;
+            proc_specifiq_pid = realloc(proc_specifiq_pid, proc_specifiq_pid_cnt * sizeof(pid_t));
+            proc_specifiq_pid[proc_specifiq_pid_cnt - 1] = atof(optarg);
             break;
 
         case 'w':
@@ -641,7 +645,7 @@ static signed char first_pass = 1;
 pid_count = 0;
 
 if (proc_specifiq_name_cnt) {
-    for (i = 0; i < proc_specifiq_name_cnt; ++i)
+    for (i = 0 ; i < proc_specifiq_name_cnt ; ++i)
         pid_count += find_pids_by_binary_name(proc_specifiq_name[i],
                                               pidinfo_list + pid_count,
                                               MAX_PIDS - pid_count);
@@ -649,8 +653,9 @@ if (proc_specifiq_name_cnt) {
 }
 
 if (proc_specifiq_pid) {
-    pid_count += find_pid_by_id(proc_specifiq_pid,
-                                  pidinfo_list + pid_count);
+    for (i = 0 ; i < proc_specifiq_pid_cnt ; ++i)
+        pid_count += find_pid_by_id(proc_specifiq_pid[i],
+                                    pidinfo_list + pid_count);
     search_all = 0;
 }
 
@@ -675,13 +680,16 @@ if (!pid_count) {
         clear();
 	refresh();
     }
-    if (proc_specifiq_pid) {
-        nfprintf(stderr, "No such pid: %d, ", proc_specifiq_pid);
+    if (proc_specifiq_pid_cnt) {
+        nfprintf(stderr, "No such pid: ");
+        for (i = 0 ; i < proc_specifiq_pid_cnt; ++i) {
+            nfprintf(stderr, "%d, ", proc_specifiq_pid[i]);
+        }
     }
     if (proc_specifiq_name_cnt)
     {
         nfprintf(stderr, "No such command(s) running: ");
-        for (i = 0; i < proc_specifiq_name_cnt; ++i) {
+        for (i = 0 ; i < proc_specifiq_name_cnt; ++i) {
             nfprintf(stderr, "%s, ", proc_specifiq_name[i]);
         }
     }
