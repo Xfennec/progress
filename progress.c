@@ -52,9 +52,12 @@
 #include "sizes.h"
 #include "hlist.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
-    "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "sha1sum",
-    "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb", NULL
+char *proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
+    "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
+    "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
+    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma",
+    "zcat", "bzcat", "lzcat",
+    NULL
 };
 
 static int proc_specifiq_name_cnt;
