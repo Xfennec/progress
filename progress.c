@@ -587,7 +587,12 @@ if (optind < argc) {
 
 void print_eta(time_t seconds)
 {
-struct tm *p = gmtime(&seconds);
+struct tm *p;
+
+if (!seconds)
+    return;
+
+p = gmtime(&seconds);
 
 nprintf(" eta ");
 if (p->tm_yday)
@@ -802,7 +807,7 @@ for (i = 0 ; i < result_count ; i++) {
 
         format_size(bytes_per_sec, ftroughput);
         nprintf(" %s/s", ftroughput);
-        if (bytes_per_sec && fdinfo.size - fdinfo.pos > 0) {
+        if (bytes_per_sec && fdinfo.size - fdinfo.pos >= 0) {
             print_eta((fdinfo.size - fdinfo.pos) / bytes_per_sec);
         }
     }
