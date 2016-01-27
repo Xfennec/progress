@@ -761,7 +761,7 @@ for (i = 0 ; i < result_count ; i++) {
 
     }
 
-    nprintf("[%5d] %s %s %.1f%% (%s / %s)",
+    nprintf("[%5d] %s %s\n\t%.1f%% (%s / %s)",
         results[i].pid.pid,
         results[i].pid.name,
         results[i].fd.name,
@@ -789,7 +789,7 @@ for (i = 0 ; i < result_count ; i++) {
     }
 
 
-    nprintf("\n");
+    nprintf("\n\n");
 
     // Need to work on window width when using screen/watch/...
     //~ printf("    [");
