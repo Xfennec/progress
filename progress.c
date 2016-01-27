@@ -51,7 +51,7 @@
 #include "sizes.h"
 #include "hlist.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "zip", "unzip", "7z", "cat",
+char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
     "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "md5", "shasum", "sha1sum", "shasum5.16",
     "shasum5.18", "sha224sum", "sha256sum", "sha384sum", "sha512sum", "perl5.16", "perl5.18", "adb", NULL
 };
