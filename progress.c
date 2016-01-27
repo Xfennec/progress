@@ -53,8 +53,8 @@
 #include "hlist.h"
 
 char *proc_names[] = {"cp", "mv", "dd", "tar", "gzip", "gunzip", "cat",
-    "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "sha1sum",
-    "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb", NULL
+    "grep", "fgrep", "egrep", "cut", "sort", "xz", "md5sum", "md5", "shasum", "sha1sum", "shasum5.16",
+    "shasum5.18", "sha224sum", "sha256sum", "sha384sum", "sha512sum", "perl5.16", "perl5.18", "adb", NULL
 };
 
 static int proc_specifiq_name_cnt;
