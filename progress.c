@@ -649,6 +649,10 @@ static signed char first_pass = 1;
 
 pid_count = 0;
 
+if (!flag_monitor && !flag_monitor_continuous)
+    first_pass = 0;
+
+
 if (proc_specifiq_name_cnt) {
     search_all = 0;
     for (i = 0 ; i < proc_specifiq_name_cnt ; ++i) {
