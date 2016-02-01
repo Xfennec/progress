@@ -594,9 +594,9 @@ if (!seconds)
 
 p = gmtime(&seconds);
 
-nprintf(" eta ");
+nprintf(" remaining ");
 if (p->tm_yday)
-    nprintf("%d day%s, ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
+    nprintf("%d day%s ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
 nprintf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
