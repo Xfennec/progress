@@ -76,6 +76,10 @@ do not report a process for 'file'. If the file does not exist yet, you must
 give a full and clean absolute path. This option can be used multiple times
 on the command line.
 .TP
+.B \-o (\-\-open-mode {r|w})
+report only files opened for read or write by the process. This option is
+useful when you want to monitor only output files (or input ones) of a process.
+.TP
 .B \-v (\-\-version)
 show program version and exit
 .TP

@@ -73,6 +73,7 @@ signed char flag_debug = 0;
 signed char flag_throughput = 0;
 signed char flag_monitor = 0;
 signed char flag_monitor_continuous = 0;
+signed char flag_open_mode = 0;
 double throughput_wait_secs = 1;
 
 WINDOW *mainwin;
@@ -349,10 +350,12 @@ struct stat stat_buf;
 char fdpath[MAXPATHLEN + 1];
 char line[LINE_LEN];
 FILE *fp;
+int flags;
 #endif
 struct timezone tz;
 
 fd_info->num = fdnum;
+fd_info->mode = PM_NONE;
 
 #ifdef __APPLE__
 struct vnode_fdinfowithpath vnodeInfo;
@@ -419,7 +422,14 @@ if (S_ISBLK(stat_buf.st_mode)) {
 #ifdef __APPLE__
 fd_info->pos = vnodeInfo.pfi.fi_offset;
 gettimeofday(&fd_info->tv, &tz);
+if (vnodeInfo.pfi.fi_openflags & FREAD)
+    fd_info->mode = PM_READ;
+if (vnodeInfo.pfi.fi_openflags & FWRITE)
+    fd_info->mode = PM_WRITE;
+if (vnodeInfo.pfi.fi_openflags & FREAD && vnodeInfo.pfi.fi_openflags & FWRITE)
+    fd_info->mode = PM_READWRITE;
 #else
+flags = 0;
 fd_info->pos = 0;
 
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fdinfo/%d", PROC_PATH, pid, fdnum);
@@ -433,12 +443,19 @@ if (!fp) {
 }
 
 while (fgets(line, LINE_LEN - 1, fp) != NULL) {
-    line[4]=0;
-    if (!strcmp(line, "pos:")) {
+    if (!strncmp(line, "pos:", 4))
         fd_info->pos = atoll(line + 5);
-        break;
-    }
+    if (!strncmp(line, "flags:", 6))
+        flags = atoll(line + 7);
 }
+
+if ((flags & O_ACCMODE) == O_RDONLY)
+    fd_info->mode = PM_READ;
+if ((flags & O_ACCMODE) == O_WRONLY)
+    fd_info->mode = PM_WRITE;
+if ((flags & O_ACCMODE) == O_RDWR)
+    fd_info->mode = PM_READWRITE;
+
 fclose(fp);
 #endif
 return 1;
@@ -477,10 +494,11 @@ static struct option long_options[] = {
     {"command",              required_argument, 0, 'c'},
     {"pid",                  required_argument, 0, 'p'},
     {"ignore-file",          required_argument, 0, 'i'},
+    {"open-mode",            required_argument, 0, 'o'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMhc:p:W:i:";
+static char *options_string = "vqdwmMhc:p:W:i:o:";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -518,6 +536,7 @@ while(1) {
             printf("  -c --command cmd           monitor only this command name (ex: firefox)\n");
             printf("  -p --pid id                monitor only this process ID (ex: `pidof firefox`)\n");
             printf("  -i --ignore-file file      do not report process if using file\n");
+            printf("  -o --open-mode {r|w}       report only files opened for read or write\n");
             printf("  -v --version               show program version and exit\n");
             printf("  -h --help                  display this help and exit\n");
             printf("\n\n");
@@ -570,6 +589,17 @@ while(1) {
         case 'W':
             flag_throughput = 1;
             throughput_wait_secs = atof(optarg);
+            break;
+
+        case 'o':
+            if (!strcmp("r", optarg))
+                flag_open_mode = PM_READ;
+            else if (!strcmp("w", optarg))
+                flag_open_mode = PM_WRITE;
+            else {
+                fprintf(stderr,"Invalid --open-mode option value '%s'.\n", optarg);
+                exit(EXIT_FAILURE);
+            }
             break;
 
         case '?':
@@ -734,6 +764,11 @@ for (i = 0 ; i < pid_count ; i++) {
     // let's find the biggest opened file
     for (j = 0 ; j < fd_count ; j++) {
         get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
+
+        if (flag_open_mode == PM_READ && fdinfo.mode != PM_READ && fdinfo.mode != PM_READWRITE)
+            continue;
+        if (flag_open_mode == PM_WRITE && fdinfo.mode != PM_WRITE && fdinfo.mode != PM_READWRITE)
+            continue;
 
         if (fdinfo.size > max_size) {
             biggest_fd = fdinfo;
