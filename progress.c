@@ -594,9 +594,9 @@ if (!seconds)
 
 p = gmtime(&seconds);
 
-nprintf(" eta ");
+nprintf(" remaining ");
 if (p->tm_yday)
-    nprintf("%d day%s, ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
+    nprintf("%d day%s ", p->tm_yday, p->tm_yday > 1 ? "s" : "");
 nprintf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 }
 
@@ -648,6 +648,10 @@ signed char search_all = 1;
 static signed char first_pass = 1;
 
 pid_count = 0;
+
+if (!flag_monitor && !flag_monitor_continuous)
+    first_pass = 0;
+
 
 if (proc_specifiq_name_cnt) {
     search_all = 0;
