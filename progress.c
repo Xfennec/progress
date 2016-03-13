@@ -135,7 +135,7 @@ char exe[MAXPATHLEN + 1];
 
 exe[0] = '\0';
 proc_name(pid, exe, sizeof(exe));
-if (strlen(exe) == 0)
+if (exe[0] == '\0')
     return 0;
 
 pid_list[0].pid = pid;
