@@ -44,9 +44,13 @@
 # include <sys/proc_info.h>
 # include <libproc.h>
 # include <sys/disk.h>
-#else
+#endif // __APPLE__
+#ifdef __linux__
 # include <linux/fs.h>
-#endif
+#endif // __linux__
+#ifdef __FreeBSD__
+# include <sys/disk.h>
+#endif // __FreeBSD__
 
 #include "progress.h"
 #include "sizes.h"
@@ -406,7 +410,16 @@ if (S_ISBLK(stat_buf.st_mode)) {
     }
     fd_info->size = bc*bs;
     printf("Size: %lld\n", fd_info->size);
-#else
+#endif
+#ifdef __FreeBSD__
+    if (ioctl(fd, DIOCGMEDIASIZE, &fd_info->size) < 0) {
+        if (flag_debug)
+            nperror("ioctl (get_fdinfo)");
+        close(fd);
+        return 0;
+    }
+#endif
+#ifdef __linux__
     if (ioctl(fd, BLKGETSIZE64, &fd_info->size) < 0) {
         if (flag_debug)
             nperror("ioctl (get_fdinfo)");
