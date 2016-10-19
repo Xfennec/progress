@@ -55,8 +55,10 @@
 char *proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
-    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma",
+    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z",
     "zcat", "bzcat", "lzcat",
+    "split",
+    "gpg",
     NULL
 };
 
