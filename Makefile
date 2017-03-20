@@ -2,14 +2,15 @@ OBJ = progress
 override CFLAGS += -g -Wall -D_FILE_OFFSET_BITS=64
 override LDFLAGS += -lm
 UNAME := $(shell uname)
+PKG_CONFIG ?= pkg-config
 ifeq ($(UNAME), Linux)
-    ifeq (, $(shell which pkg-config 2> /dev/null))
+    ifeq (, $(shell which $(PKG_CONFIG) 2> /dev/null))
     $(error "pkg-config command not found")
     endif
-    ifeq (, $(shell pkg-config ncurses --libs 2> /dev/null))
+    ifeq (, $(shell $(PKG_CONFIG) ncurses --libs 2> /dev/null))
     $(error "ncurses package not found")
     endif
-    override LDFLAGS += $(shell pkg-config ncurses --libs)
+    override LDFLAGS += $(shell $(PKG_CONFIG) ncurses --libs)
 endif
 ifeq ($(UNAME), Darwin)
     override LDFLAGS += -lncurses
