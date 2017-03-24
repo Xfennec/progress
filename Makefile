@@ -1,5 +1,6 @@
 OBJ = progress
-override CFLAGS += -g -Wall -D_FILE_OFFSET_BITS=64
+CFLAGS ?= -g
+override CFLAGS += -Wall -D_FILE_OFFSET_BITS=64
 override LDFLAGS += -lm
 UNAME := $(shell uname)
 PKG_CONFIG ?= pkg-config
