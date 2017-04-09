@@ -52,14 +52,17 @@
 #include "sizes.h"
 #include "hlist.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
+// Given -a will dynamically add values to this list, move it to be a dynamic
+// list and generate it at runtime.
+static int proc_names_cnt;
+static char **proc_names;
+char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
     "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z",
     "zcat", "bzcat", "lzcat",
     "split",
-    "gpg",
-    NULL
+    "gpg"
 };
 
 // static means initialized to 0/NULL (C standard, §6.7.8/10)
@@ -493,6 +496,7 @@ static struct option long_options[] = {
     {"monitor",              no_argument,       0, 'm'},
     {"monitor-continuously", no_argument,       0, 'M'},
     {"help",                 no_argument,       0, 'h'},
+    {"additional-command",   required_argument, 0, 'a'},
     {"command",              required_argument, 0, 'c'},
     {"pid",                  required_argument, 0, 'p'},
     {"ignore-file",          required_argument, 0, 'i'},
@@ -500,7 +504,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMhc:p:W:i:o:";
+static char *options_string = "vqdwmMha:c:p:W:i:o:";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -529,20 +533,21 @@ while(1) {
                 printf("%s ", proc_names[i]);
             printf("\n\n");
             printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n",argv[0]);
-            printf("  -q --quiet                 hides all messages\n");
-            printf("  -d --debug                 shows all warning/error messages\n");
-            printf("  -w --wait                  estimate I/O throughput and ETA (slower display)\n");
-            printf("  -W --wait-delay secs       wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
-            printf("  -m --monitor               loop while monitored processes are still running\n");
-            printf("  -M --monitor-continuously  like monitor but never stop (similar to watch %s)\n", argv[0]);
-            printf("  -c --command cmd           monitor only this command name (ex: firefox)\n");
-            printf("  -p --pid id                monitor only this process ID (ex: `pidof firefox`)\n");
-            printf("  -i --ignore-file file      do not report process if using file\n");
-            printf("  -o --open-mode {r|w}       report only files opened for read or write\n");
-            printf("  -v --version               show program version and exit\n");
-            printf("  -h --help                  display this help and exit\n");
+            printf("  -q --quiet                   hides all messages\n");
+            printf("  -d --debug                   shows all warning/error messages\n");
+            printf("  -w --wait                    estimate I/O throughput and ETA (slower display)\n");
+            printf("  -W --wait-delay secs         wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
+            printf("  -m --monitor                 loop while monitored processes are still running\n");
+            printf("  -M --monitor-continuously    like monitor but never stop (similar to watch %s)\n", argv[0]);
+            printf("  -a --additional-command cmd  add additional command to default command list\n");
+            printf("  -c --command cmd             monitor only this command name (ex: firefox)\n");
+            printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
+            printf("  -i --ignore-file file        do not report process if using file\n");
+            printf("  -o --open-mode {r|w}         report only files opened for read or write\n");
+            printf("  -v --version                 show program version and exit\n");
+            printf("  -h --help                    display this help and exit\n");
             printf("\n\n");
-            printf("Multiple options allowed for: -c -p -i. Use PROGRESS_ARGS for permanent arguments.\n");
+            printf("Multiple options allowed for: -a -c -p -i. Use PROGRESS_ARGS for permanent arguments.\n");
             exit(EXIT_SUCCESS);
             break;
 
@@ -562,6 +567,12 @@ while(1) {
                 ignore_file_list[ignore_file_list_cnt - 1] = rp;
             else
                 ignore_file_list[ignore_file_list_cnt - 1] = strdup(optarg); // file does not exist yet, it seems
+            break;
+
+        case 'a':
+            proc_names_cnt++;
+            proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
+            proc_names[proc_names_cnt - 1] = strdup(optarg);
             break;
 
         case 'c':
@@ -878,6 +889,15 @@ if(flag_monitor || flag_monitor_continuous)
 exit(0);
 }
 
+// Setup the default commands as a dynamic list
+void populate_proc_names() {
+    for(int i=0; i<sizeof(default_proc_names)/sizeof(default_proc_names[0]); i++) {
+        proc_names_cnt++;
+        proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
+        proc_names[proc_names_cnt - 1] = default_proc_names[i];
+    }
+}
+
 int main(int argc, char *argv[])
 {
 pid_t nb_pid;
@@ -885,6 +905,8 @@ struct winsize ws;
 wordexp_t env_wordexp;
 char *env_progress_args;
 char *env_progress_args_full;
+
+populate_proc_names();
 
 env_progress_args = getenv("PROGRESS_ARGS");
 
