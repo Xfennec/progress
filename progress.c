@@ -62,7 +62,8 @@ char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
     "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z",
     "zcat", "bzcat", "lzcat",
     "split",
-    "gpg"
+    "gpg",
+    NULL
 };
 
 // static means initialized to 0/NULL (C standard, §6.7.8/10)
@@ -529,7 +530,7 @@ while(1) {
             printf("---------------------\n");
             printf("Shows progress on file manipulations (cp, mv, dd, ...)\n\n");
             printf("Monitored commands (default):\n");
-            for(i = 0 ; proc_names[i] ; i++)
+            for(i = 0 ; i < proc_names_cnt ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n\n");
             printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n",argv[0]);
@@ -723,7 +724,7 @@ if (proc_specifiq_pid) {
 }
 
 if (search_all) {
-    for (i = 0 ; proc_names[i] ; i++) {
+    for (i = 0 ; i < proc_names_cnt ; i++) {
         pid_count += find_pids_by_binary_name(proc_names[i],
                                               pidinfo_list + pid_count,
                                               MAX_PIDS - pid_count);
@@ -758,7 +759,7 @@ if (!pid_count) {
     }
     if (!proc_specifiq_pid && !proc_specifiq_name_cnt) {
         nfprintf(stderr,"No command currently running: ");
-        for (i = 0 ; proc_names[i] ; i++) {
+        for (i = 0 ; i < proc_names_cnt ; i++) {
             nfprintf(stderr,"%s, ", proc_names[i]);
         }
     }
@@ -892,7 +893,7 @@ exit(0);
 // Setup the default commands as a dynamic list
 void populate_proc_names() {
     int i;
-    for(i=0; i<sizeof(default_proc_names)/sizeof(default_proc_names[0]); i++) {
+    for(i = 0 ; default_proc_names[i] ; i++) {
         proc_names_cnt++;
         proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
         proc_names[proc_names_cnt - 1] = default_proc_names[i];
