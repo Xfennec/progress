@@ -891,7 +891,8 @@ exit(0);
 
 // Setup the default commands as a dynamic list
 void populate_proc_names() {
-    for(int i=0; i<sizeof(default_proc_names)/sizeof(default_proc_names[0]); i++) {
+    int i;
+    for(i=0; i<sizeof(default_proc_names)/sizeof(default_proc_names[0]); i++) {
         proc_names_cnt++;
         proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
         proc_names[proc_names_cnt - 1] = default_proc_names[i];
