@@ -13,6 +13,9 @@ progress \- Coreutils Progress Viewer
 .B \-c
 .I command
 ] [
+.B \-a
+.I command
+] [
 .B \-p
 .I pid
 ]
@@ -61,6 +64,10 @@ like monitor but never stop (similar to
 .TP
 .B \-c (\-\-command cmd)
 monitor only this command name (ex: firefox). This option can be used multiple
+times on the command line.
+.TP
+.B \-a (\-\-additional-command cmd)
+add this this command to the default list. This option can be used multiple
 times on the command line.
 .TP
 .B \-p (\-\-pid id)
