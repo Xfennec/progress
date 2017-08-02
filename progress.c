@@ -59,7 +59,7 @@ static char **proc_names;
 char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
-    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z",
+    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za",
     "zcat", "bzcat", "lzcat",
     "split",
     "gpg",
