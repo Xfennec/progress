@@ -746,9 +746,10 @@ if (!pid_count) {
     }
     if (proc_specifiq_pid_cnt) {
         nfprintf(stderr, "No such pid: ");
-        for (i = 0 ; i < proc_specifiq_pid_cnt; ++i) {
-            nfprintf(stderr, "%d, ", proc_specifiq_pid[i]);
-        }
+	if (proc_specifiq_pid)
+            for (i = 0 ; i < proc_specifiq_pid_cnt; ++i) {
+                nfprintf(stderr, "%d, ", proc_specifiq_pid[i]);
+            }
     }
     if (proc_specifiq_name_cnt)
     {
