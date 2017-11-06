@@ -155,7 +155,7 @@ int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 int pid_count=0;
 int nb_processes = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
 char exe[1024];
-pid_t *pids
+pid_t *pids;
 int i;
 
 pids = malloc(nb_processes * sizeof(pid_t));
