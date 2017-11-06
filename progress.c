@@ -29,6 +29,7 @@
 #include <time.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <assert.h>
 #include <curses.h>
 
 #include <wordexp.h>
@@ -154,8 +155,11 @@ int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 int pid_count=0;
 int nb_processes = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
 char exe[1024];
-pid_t *pids = malloc(nb_processes * sizeof(pid_t));
+pid_t *pids
 int i;
+
+pids = malloc(nb_processes * sizeof(pid_t));
+assert(pids != NULL);
 
 proc_listpids(PROC_ALL_PIDS, 0, pids, nb_processes);
 for(i = 0; i < nb_processes; ++i) {
@@ -259,6 +263,7 @@ if (bufferSize < 0) {
     return 0;
 }
 struct proc_fdinfo *procFDInfo = (struct proc_fdinfo *)malloc(bufferSize);
+assert(procFDInfo != NULL);
 proc_pidinfo(pid, PROC_PIDLISTFDS, 0, procFDInfo, bufferSize);
 int numberOfProcFDs = bufferSize / PROC_PIDLISTFD_SIZE;
 int i;
@@ -564,6 +569,7 @@ while(1) {
             rp = realpath(optarg, NULL);
             ignore_file_list_cnt++;
             ignore_file_list = realloc(ignore_file_list, ignore_file_list_cnt * sizeof(char *));
+            assert(ignore_file_list != NULL);
             if (rp)
                 ignore_file_list[ignore_file_list_cnt - 1] = rp;
             else
@@ -573,18 +579,21 @@ while(1) {
         case 'a':
             proc_names_cnt++;
             proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
+            assert(proc_names != NULL);
             proc_names[proc_names_cnt - 1] = strdup(optarg);
             break;
 
         case 'c':
             proc_specifiq_name_cnt++;
             proc_specifiq_name = realloc(proc_specifiq_name, proc_specifiq_name_cnt * sizeof(char *));
+            assert(proc_specifiq_name != NULL);
             proc_specifiq_name[proc_specifiq_name_cnt - 1] = strdup(optarg);
             break;
 
         case 'p':
             proc_specifiq_pid_cnt++;
             proc_specifiq_pid = realloc(proc_specifiq_pid, proc_specifiq_pid_cnt * sizeof(pid_t));
+            assert(proc_specifiq_pid != NULL);
             proc_specifiq_pid[proc_specifiq_pid_cnt - 1] = atof(optarg);
             break;
 
@@ -896,6 +905,7 @@ void populate_proc_names() {
     for(i = 0 ; default_proc_names[i] ; i++) {
         proc_names_cnt++;
         proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
+        assert(proc_names != NULL);
         proc_names[proc_names_cnt - 1] = default_proc_names[i];
     }
 }
@@ -919,6 +929,7 @@ if (env_progress_args) {
     // argv[0] + ' ' + env_progress_args + '\0'
     full_len = strlen(argv[0]) + 1 + strlen(env_progress_args) + 1;
     env_progress_args_full = malloc(full_len * sizeof(char));
+    assert(env_progress_args_full != NULL);
     sprintf(env_progress_args_full, "%s %s", argv[0], env_progress_args);
 
     if (wordexp(env_progress_args_full, &env_wordexp, 0)) {
