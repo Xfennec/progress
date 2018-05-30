@@ -57,7 +57,7 @@
 // list and generate it at runtime.
 static int proc_names_cnt;
 static char **proc_names;
-char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
+char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync", "rclone",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
     "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za",
