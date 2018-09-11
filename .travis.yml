@@ -1,17 +1,17 @@
 os:
-  - linux
-  - osx
+	- linux
+	- osx
 
-language: c
+	language: c
 
-compiler:
-  - gcc
-  - clang
+	compiler:
+		- gcc
+		- clang
 
-script: make
+		script: make
 
-notifications:
-  email:
-    on_success: never
-    on_failure: always
+		notifications:
+			email:
+				on_success: never
+				on_failure: always
 
