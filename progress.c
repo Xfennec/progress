@@ -133,7 +133,7 @@ signed char is_ignored_file(char *str)
 		if (!strcmp(ignore_file_list[i], str))
 			return 1;
 	return 0;
-	}
+}
 
 #ifdef __APPLE__
 	int find_pid_by_id(pid_t pid, pidinfo_t *pid_list)
