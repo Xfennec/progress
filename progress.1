@@ -18,6 +18,8 @@ progress \- Coreutils Progress Viewer
 ] [
 .B \-p
 .I pid
+] [
+.B \-g
 ]
 .br
 .B progress -v
@@ -74,6 +76,10 @@ times on the command line.
 monitor only this numeric process ID (ex: \`pidof firefox\`). This option can
 be used multiple times on the command line.
 .TP
+.B \-g (\-\-process-group)
+monitor also the processes belonging to the process group of process ID (requires
+.BR \-p )
+.TP
 .B \-i (\-\-ignore-file file)
 do not report a process for 'file'. If the file does not exist yet, you must
 give a full and clean absolute path. This option can be used multiple times
@@ -118,6 +124,11 @@ Launch and monitor any heavy command using $!
 
 .B cp bigfile newfile & progress \-mp $!
 
+.RE
+Launch a script and monitor all its basic copy commands
+.RS
+
+.B ./script.sh & progress \-mgp $!
 
 .RE
 Use environment variable to set permanent (multiple) arguments
