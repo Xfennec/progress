@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <curses.h>
+#include <locale.h>
 
 #include <wordexp.h>
 #include <getopt.h>
@@ -701,7 +702,6 @@ signed char search_all = 1;
 static signed char first_pass = 1;
 
 pid_count = 0;
-
 if (!flag_monitor && !flag_monitor_continuous)
     first_pass = 0;
 
@@ -943,6 +943,7 @@ parse_options(argc,argv);
 // ws.ws_row, ws.ws_col
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 if (flag_monitor || flag_monitor_continuous) {
+    setlocale(LC_CTYPE, "");
     if ((mainwin = initscr()) == NULL ) {
         fprintf(stderr, "Error initialising ncurses.\n");
         exit(EXIT_FAILURE);
