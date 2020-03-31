@@ -82,6 +82,7 @@ signed char flag_throughput = 0;
 signed char flag_monitor = 0;
 signed char flag_monitor_continuous = 0;
 signed char flag_open_mode = 0;
+signed char flag_short = 0;
 double throughput_wait_secs = 1;
 
 WINDOW *mainwin;
@@ -508,10 +509,11 @@ static struct option long_options[] = {
     {"pid",                  required_argument, 0, 'p'},
     {"ignore-file",          required_argument, 0, 'i'},
     {"open-mode",            required_argument, 0, 'o'},
+    {"short",                no_argument,       0, 's'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMha:c:p:W:i:o:";
+static char *options_string = "svqdwmMha:c:p:W:i:o:";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -546,6 +548,7 @@ while(1) {
             printf("  -W --wait-delay secs         wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
             printf("  -m --monitor                 loop while monitored processes are still running\n");
             printf("  -M --monitor-continuously    like monitor but never stop (similar to watch %s)\n", argv[0]);
+            printf("  -s --short                   terser output, e.g. don't show command\n");
             printf("  -a --additional-command cmd  add additional command to default command list\n");
             printf("  -c --command cmd             monitor only this command name (ex: firefox)\n");
             printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
@@ -608,6 +611,10 @@ while(1) {
 
         case 'M':
             flag_monitor_continuous = 1;
+            break;
+
+        case 's':
+            flag_short = 1;
             break;
 
         case 'W':
@@ -847,13 +854,20 @@ for (i = 0 ; i < result_count ; i++) {
 
     }
 
-    nprintf("[%5d] %s %s\n\t%.1f%% (%s / %s)",
-        results[i].pid.pid,
-        results[i].pid.name,
-        results[i].fd.name,
-        perc,
-        fpos,
-        fsize);
+    if (flag_short)
+        nprintf("[%5d] %.1f%% (%s / %s)",
+            results[i].pid.pid,
+            perc,
+            fpos,
+            fsize);
+    else
+        nprintf("[%5d] %s %s\n\t%.1f%% (%s / %s)",
+            results[i].pid.pid,
+            results[i].pid.name,
+            results[i].fd.name,
+            perc,
+            fpos,
+            fsize);
 
     if (flag_throughput && still_there && !first_pass) {
         // results[i] vs fdinfo
@@ -875,7 +889,10 @@ for (i = 0 ; i < result_count ; i++) {
     }
 
 
-    nprintf("\n\n");
+    if (flag_short)
+        nprintf("\n");
+    else
+        nprintf("\n\n");
 
     // Need to work on window width when using screen/watch/...
     //~ printf("    [");
