@@ -209,6 +209,7 @@ char fullpath_exe[MAXPATHLEN + 1];
 char exe[MAXPATHLEN + 1];
 ssize_t len;
 int pid_count=0;
+int res;
 
 proc=opendir(PROC_PATH);
 if (!proc) {
@@ -227,7 +228,11 @@ while ((direntp = readdir(proc)) != NULL) {
     }
 
     if ((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
-        snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
+        res = snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
+        if (res < 0) {
+            fprintf(stderr, "path is too long: %s\n", fullpath_dir);
+            exit(EXIT_FAILURE);
+        }
         len=readlink(fullpath_exe, exe, MAXPATHLEN);
         if (len != -1)
             exe[len] = 0;
@@ -305,6 +310,7 @@ char link_dest[MAXPATHLEN + 1];
 struct stat stat_buf;
 int count = 0;
 ssize_t len;
+int res;
 
 snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
 
@@ -316,7 +322,11 @@ if (!proc) {
 }
 
 while ((direntp = readdir(proc)) != NULL) {
-    snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
+    res = snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
+    if (res < 0) {
+        fprintf(stderr, "path is too long: %s/%s\n", path_dir, direntp->d_name);
+        exit(EXIT_FAILURE);
+    }
     if (stat(fullpath, &stat_buf) == -1) {
         if (flag_debug)
             nperror("stat (find_fd_for_pid)");
