@@ -16,8 +16,28 @@ _(After many requests: the colors in the shell come from [powerline-shell](https
 
 Formerly known as cv (Coreutils Viewer).
 
-How do you build it?
---------------------
+How do you install it?
+----------------------
+
+On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
+
+    apt install progress
+    
+On rpm-based systems (Red Hat, CentOS, SUSE, etc.), run:
+
+    yum install progress
+
+On macOS, with homebrew, run:
+
+    brew install progress
+    
+On macOS, with MacPorts, run:
+
+    port install progress
+
+
+How do you build it from source?
+--------------------------------
 
     make && make install
 
