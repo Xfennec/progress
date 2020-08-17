@@ -19,7 +19,7 @@ Formerly known as cv (Coreutils Viewer).
 How do you install it?
 ----------------------
 
-On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
+On deb-based systems (Debian, Ubuntu, Mint, etc.), run:
 
     apt install progress
     
