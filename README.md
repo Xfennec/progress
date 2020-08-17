@@ -26,6 +26,10 @@ On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
 On rpm-based systems (Red Hat, CentOS, SUSE, etc.), run:
 
     yum install progress
+    
+On any GNU/Linux distribution using the guix package manager, run:
+    
+    guix install progress
 
 On macOS, with homebrew, run:
 
