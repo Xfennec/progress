@@ -58,7 +58,7 @@
 // list and generate it at runtime.
 static int proc_names_cnt;
 static char **proc_names;
-char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
+char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync", "scp",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
     "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za", "zip", "unzip",
@@ -548,7 +548,7 @@ while(1) {
             printf("progress - Coreutils Viewer\n");
             printf("---------------------\n");
             printf("Shows progress on file manipulations (cp, mv, dd, ...)\n\n");
-            printf("Monitored commands (default):\n");
+            printf("Monitored commands (default, you can add virtually anything):\n");
             for(i = 0 ; i < proc_names_cnt ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n\n");
