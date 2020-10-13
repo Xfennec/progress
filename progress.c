@@ -65,6 +65,9 @@ char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
     "zcat", "bzcat", "lzcat",
     "split",
     "gpg",
+#ifdef __APPLE__
+    "gcp", "gmv",
+#endif
     NULL
 };
 
