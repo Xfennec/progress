@@ -1,8 +1,8 @@
 progress - Coreutils Progress Viewer [![Build Status](https://travis-ci.org/Xfennec/progress.svg?branch=master)](https://travis-ci.org/Xfennec/progress)
 =====================
 
-What is it?
------------
+What is it
+----------
 
 This tool can be described as a **Tiny**, Dirty, Linux-and-OSX-Only C command
 that looks for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip,
@@ -16,13 +16,13 @@ _(After many requests: the colors in the shell come from [powerline-shell](https
 
 Formerly known as cv (Coreutils Viewer).
 
-How do you install it?
-----------------------
+How do you install it
+---------------------
 
 On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
 
     apt install progress
-    
+
 On rpm-based systems (Red Hat, CentOS, SUSE, etc.), run:
 
     yum install progress
@@ -30,27 +30,25 @@ On rpm-based systems (Red Hat, CentOS, SUSE, etc.), run:
 On macOS, with homebrew, run:
 
     brew install progress
-    
+
 On macOS, with MacPorts, run:
 
     port install progress
 
-
-How do you build it from source?
---------------------------------
+How do you build it from source
+-------------------------------
 
     make && make install
 
 It depends on library ncurses, you may have to install corresponding packages (may be something like 'libncurses5-dev' or 'ncurses-devel').
 
-How do you run it?
-------------------
+How do you run it
+-----------------
 
 Just launch the binary, `progress`.
 
-
-What can I do with it?
-----------------------
+What can I do with it
+---------------------
 
 A few examples. You can:
 
@@ -73,8 +71,8 @@ A few examples. You can:
 
 and much more.
 
-How does it work?
------------------
+How does it work
+----------------
 
 It simply scans `/proc` for interesting commands, and then looks at
 directories `fd` and `fdinfo` to find opened files and seek positions,
