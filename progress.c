@@ -63,6 +63,7 @@ char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync", "scp",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
     "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za", "zip", "unzip",
     "zcat", "bzcat", "lzcat",
+    "coreutils",
     "split",
     "gpg",
 #ifdef __APPLE__
