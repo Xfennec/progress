@@ -86,6 +86,7 @@ signed char flag_throughput = 0;
 signed char flag_monitor = 0;
 signed char flag_monitor_continuous = 0;
 signed char flag_open_mode = 0;
+signed char flag_process_group = 0;
 double throughput_wait_secs = 1;
 
 WINDOW *mainwin;
@@ -183,6 +184,11 @@ for(i = 0; i < nb_processes; ++i) {
 free(pids);
 return pid_count;
 }
+
+int find_pids_by_process_group(pid_t want_pgid, pidinfo_t *pid_list, int max_pids) {
+    // stub
+    return pid_count;
+}
 #else
 int find_pid_by_id(pid_t pid, pidinfo_t *pid_list)
 {
@@ -250,6 +256,73 @@ while ((direntp = readdir(proc)) != NULL) {
             pid_list[pid_count].pid = atol(direntp->d_name);
             strcpy(pid_list[pid_count].name, bin_name);
             pid_count++;
+            if(pid_count == max_pids)
+                break;
+        }
+    }
+}
+
+closedir(proc);
+return pid_count;
+}
+
+int find_pids_by_process_group(pid_t want_pgid, pidinfo_t *pid_list, int max_pids)
+{
+DIR *proc;
+struct dirent *direntp;
+struct stat stat_buf;
+char fullpath_dir[MAXPATHLEN + 1];
+unsigned int pid_count=0;
+char fullpath_stat[MAXPATHLEN + 1];
+FILE *fp;
+char line[MAXPATHLEN];
+pid_t pid, pgid;
+
+proc=opendir(PROC_PATH);
+if (!proc) {
+    nperror("opendir");
+    nfprintf(stderr,"Can't open %s\n",PROC_PATH);
+    exit(EXIT_FAILURE);
+}
+
+while ((direntp = readdir(proc)) != NULL) {
+    snprintf(fullpath_dir, MAXPATHLEN, "%s/%s", PROC_PATH, direntp->d_name);
+
+    if (stat(fullpath_dir, &stat_buf) == -1) {
+        if (flag_debug)
+            nperror("stat (find_pids_by_process_group)");
+        continue;
+    }
+
+    if ((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
+        snprintf(fullpath_stat, MAXPATHLEN, "%s/stat", fullpath_dir);
+
+        fp = fopen(fullpath_stat, "r");
+        if (!fp) {
+            if (flag_debug)
+                nperror("fopen (find_pids_by_process_group)");
+            return 0;
+        }
+        
+        pid = pgid = 0;
+        if (fgets(line, MAXPATHLEN - 1, fp) != NULL) {
+            char *p, *q;
+            /* /proc/<pid>/stat guarantees occurrence of at least one ')' */
+            for (q = line + strlen(line); *q != ')'; q--)
+                ;
+            sscanf(q + 1, " %*c %*d %d", &pgid); 
+            if (pgid == want_pgid) {
+                sscanf(line, "%d", &pid); // a.k.a. direntp->d_name;
+                for (p = line; *p != '('; p++)
+                    ;
+                *q = 0;
+                strcpy(pid_list[pid_count].name, p + 1);
+            }
+        }
+        fclose(fp);
+
+        if (pid) {
+            pid_list[pid_count++].pid = pid;
             if(pid_count == max_pids)
                 break;
         }
@@ -522,10 +595,11 @@ static struct option long_options[] = {
     {"pid",                  required_argument, 0, 'p'},
     {"ignore-file",          required_argument, 0, 'i'},
     {"open-mode",            required_argument, 0, 'o'},
+    {"process-group",        no_argument,       0, 'g'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMha:c:p:W:i:o:";
+static char *options_string = "vqdwmMha:c:p:W:i:o:g";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -563,6 +637,7 @@ while(1) {
             printf("  -a --additional-command cmd  add additional command to default command list\n");
             printf("  -c --command cmd             monitor only this command name (ex: firefox)\n");
             printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
+            printf("  -g --process-group           monitor also the process group of -p ID\n");
             printf("  -i --ignore-file file        do not report process if using file\n");
             printf("  -o --open-mode {r|w}         report only files opened for read or write\n");
             printf("  -v --version                 show program version and exit\n");
@@ -638,6 +713,10 @@ while(1) {
                 fprintf(stderr,"Invalid --open-mode option value '%s'.\n", optarg);
                 exit(EXIT_FAILURE);
             }
+            break;
+
+        case 'g':
+            flag_process_group = 1;
             break;
 
         case '?':
@@ -743,6 +822,17 @@ if (proc_specifiq_pid) {
             nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
             return 0;
         }
+        if (flag_process_group) {
+            pid_t pgid;
+            pgid = getpgid(proc_specifiq_pid[i]);
+            --pid_count; // next line will find proc_specifiq_pid[i] again
+            pid_count += find_pids_by_process_group(pgid,
+                                                    pidinfo_list + pid_count, MAX_PIDS);
+            if(pid_count >= MAX_PIDS) {
+                nfprintf(stderr, "Found too many procs (max = %d)\n",MAX_PIDS);
+                return 0;
+            }
+	}
     }
 }
 
