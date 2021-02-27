@@ -295,8 +295,8 @@ procstat = procstat_open_sysctl();
 assert(procstat != NULL);
 
 procs = procstat_getprocs(procstat, KERN_PROC_PID, pid, &proc_count);
-// procstat doesn't seem to set errno, so don't nperror()
-assert(procs != NULL);
+if (procs == NULL)
+    goto done;
 
 for (i = 0; i < proc_count; i++) {
     proc = &procs[i];
@@ -312,6 +312,7 @@ for (i = 0; i < proc_count; i++) {
 }
 
 procstat_freeprocs(procstat, procs);
+done:
 procstat_close(procstat);
 
 return found;
@@ -333,8 +334,8 @@ procstat = procstat_open_sysctl();
 assert(procstat != NULL);
 
 procs = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &proc_count);
-// procstat doesn't seem to set errno, so don't nperror()
-assert(procs != NULL);
+if (procs == NULL)
+    goto done;
 
 for (i = 0; i < proc_count; i++) {
     proc = &procs[i];
@@ -353,6 +354,7 @@ for (i = 0; i < proc_count; i++) {
 }
 
 procstat_freeprocs(procstat, procs);
+done:
 procstat_close(procstat);
 
 return pid_count;
@@ -484,8 +486,8 @@ procstat = procstat_open_sysctl();
 assert(procstat != NULL);
 
 procs = procstat_getprocs(procstat, KERN_PROC_PID, pid, &proc_count);
-// procstat doesn't seem to set errno, so don't nperror()
-assert(procs != NULL);
+if (procs == NULL)
+    goto done;
 
 for (i = 0; i < proc_count; i++) {
     proc = &procs[i];
@@ -524,6 +526,7 @@ for (i = 0; i < proc_count; i++) {
 }
 
 procstat_freeprocs(procstat, procs);
+done:
 procstat_close(procstat);
 
 return count;
@@ -578,8 +581,8 @@ procstat = procstat_open_sysctl();
 assert(procstat != NULL);
 
 procs = procstat_getprocs(procstat, KERN_PROC_PID, pid, &proc_count);
-// procstat doesn't seem to set errno, so don't nperror()
-assert(procs != NULL);
+if (procs == NULL)
+    goto done;
 
 for (i = 0; i < proc_count; i++) {
     proc = &procs[i];
@@ -617,6 +620,7 @@ for (i = 0; i < proc_count; i++) {
 }
 
 procstat_freeprocs(procstat, procs);
+done:
 procstat_close(procstat);
 #endif // __FreeBSD__
 
