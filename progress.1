@@ -13,6 +13,9 @@ progress \- Coreutils Progress Viewer
 .B \-c
 .I command
 ] [
+.B \-a
+.I command
+] [
 .B \-p
 .I pid
 ]
@@ -35,9 +38,7 @@ cat, etc.) currently running on your system and displays the
 percentage of copied data.
 
 It can now also estimate throughput (using flag
-.B \-w
-).
-
+.BR \-w ).
 
 .SH OPTIONS
 .TP
@@ -52,19 +53,21 @@ estimate I/O throughput and estimated remaining time (slower display)
 .TP
 .B \-W (\-\-wait\-delay secs)
 wait 'secs' seconds for I/O estimation (implies
-.B \-w
-)
+.BR \-w )
 .TP
 .B \-m (\-\-monitor)
 loop while monitored processes are still running
 .TP
 .B \-M (\-\-monitor\-continuously)
 like monitor but never stop (similar to
-.B watch progress
-)
+.BR "watch progress" )
 .TP
 .B \-c (\-\-command cmd)
 monitor only this command name (ex: firefox). This option can be used multiple
+times on the command line.
+.TP
+.B \-a (\-\-additional-command cmd)
+add this command to the default list. This option can be used multiple
 times on the command line.
 .TP
 .B \-p (\-\-pid id)

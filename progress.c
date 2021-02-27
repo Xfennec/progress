@@ -29,7 +29,9 @@
 #include <time.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <assert.h>
 #include <curses.h>
+#include <locale.h>
 
 #include <wordexp.h>
 #include <getopt.h>
@@ -56,11 +58,21 @@
 #include "sizes.h"
 #include "hlist.h"
 
-char *proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync",
+// Given -a will dynamically add values to this list, move it to be a dynamic
+// list and generate it at runtime.
+static int proc_names_cnt;
+static char **proc_names;
+char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync", "scp",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
-    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma",
+    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za", "zip", "unzip",
     "zcat", "bzcat", "lzcat",
+    "coreutils",
+    "split",
+    "gpg",
+#ifdef __APPLE__
+    "gcp", "gmv",
+#endif
     NULL
 };
 
@@ -152,8 +164,11 @@ int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
 int pid_count=0;
 int nb_processes = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
 char exe[1024];
-pid_t *pids = malloc(nb_processes * sizeof(pid_t));
+pid_t *pids;
 int i;
+
+pids = malloc(nb_processes * sizeof(pid_t));
+assert(pids != NULL);
 
 proc_listpids(PROC_ALL_PIDS, 0, pids, nb_processes);
 for(i = 0; i < nb_processes; ++i) {
@@ -202,6 +217,7 @@ char fullpath_exe[MAXPATHLEN + 1];
 char exe[MAXPATHLEN + 1];
 ssize_t len;
 int pid_count=0;
+int res;
 
 proc=opendir(PROC_PATH);
 if (!proc) {
@@ -220,7 +236,11 @@ while ((direntp = readdir(proc)) != NULL) {
     }
 
     if ((S_ISDIR(stat_buf.st_mode) && is_numeric(direntp->d_name))) {
-        snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
+        res = snprintf(fullpath_exe, MAXPATHLEN, "%s/exe", fullpath_dir);
+        if (res < 0) {
+            fprintf(stderr, "path is too long: %s\n", fullpath_dir);
+            exit(EXIT_FAILURE);
+        }
         len=readlink(fullpath_exe, exe, MAXPATHLEN);
         if (len != -1)
             exe[len] = 0;
@@ -257,6 +277,7 @@ if (bufferSize < 0) {
     return 0;
 }
 struct proc_fdinfo *procFDInfo = (struct proc_fdinfo *)malloc(bufferSize);
+assert(procFDInfo != NULL);
 proc_pidinfo(pid, PROC_PIDLISTFDS, 0, procFDInfo, bufferSize);
 int numberOfProcFDs = bufferSize / PROC_PIDLISTFD_SIZE;
 int i;
@@ -297,6 +318,7 @@ char link_dest[MAXPATHLEN + 1];
 struct stat stat_buf;
 int count = 0;
 ssize_t len;
+int res;
 
 snprintf(path_dir, MAXPATHLEN, "%s/%d/fd", PROC_PATH, pid);
 
@@ -308,7 +330,11 @@ if (!proc) {
 }
 
 while ((direntp = readdir(proc)) != NULL) {
-    snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
+    res = snprintf(fullpath, MAXPATHLEN, "%s/%s", path_dir, direntp->d_name);
+    if (res < 0) {
+        fprintf(stderr, "path is too long: %s/%s\n", path_dir, direntp->d_name);
+        exit(EXIT_FAILURE);
+    }
     if (stat(fullpath, &stat_buf) == -1) {
         if (flag_debug)
             nperror("stat (find_fd_for_pid)");
@@ -504,6 +530,7 @@ static struct option long_options[] = {
     {"monitor",              no_argument,       0, 'm'},
     {"monitor-continuously", no_argument,       0, 'M'},
     {"help",                 no_argument,       0, 'h'},
+    {"additional-command",   required_argument, 0, 'a'},
     {"command",              required_argument, 0, 'c'},
     {"pid",                  required_argument, 0, 'p'},
     {"ignore-file",          required_argument, 0, 'i'},
@@ -511,7 +538,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMhc:p:W:i:o:";
+static char *options_string = "vqdwmMha:c:p:W:i:o:";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -535,25 +562,26 @@ while(1) {
             printf("progress - Coreutils Viewer\n");
             printf("---------------------\n");
             printf("Shows progress on file manipulations (cp, mv, dd, ...)\n\n");
-            printf("Monitored commands (default):\n");
-            for(i = 0 ; proc_names[i] ; i++)
+            printf("Monitored commands (default, you can add virtually anything):\n");
+            for(i = 0 ; i < proc_names_cnt ; i++)
                 printf("%s ", proc_names[i]);
             printf("\n\n");
             printf("Usage: %s [-qdwmM] [-W secs] [-c command] [-p pid]\n",argv[0]);
-            printf("  -q --quiet                 hides all messages\n");
-            printf("  -d --debug                 shows all warning/error messages\n");
-            printf("  -w --wait                  estimate I/O throughput and ETA (slower display)\n");
-            printf("  -W --wait-delay secs       wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
-            printf("  -m --monitor               loop while monitored processes are still running\n");
-            printf("  -M --monitor-continuously  like monitor but never stop (similar to watch %s)\n", argv[0]);
-            printf("  -c --command cmd           monitor only this command name (ex: firefox)\n");
-            printf("  -p --pid id                monitor only this process ID (ex: `pidof firefox`)\n");
-            printf("  -i --ignore-file file      do not report process if using file\n");
-            printf("  -o --open-mode {r|w}       report only files opened for read or write\n");
-            printf("  -v --version               show program version and exit\n");
-            printf("  -h --help                  display this help and exit\n");
+            printf("  -q --quiet                   hides all messages\n");
+            printf("  -d --debug                   shows all warning/error messages\n");
+            printf("  -w --wait                    estimate I/O throughput and ETA (slower display)\n");
+            printf("  -W --wait-delay secs         wait 'secs' seconds for I/O estimation (implies -w, default=%.1f)\n", throughput_wait_secs);
+            printf("  -m --monitor                 loop while monitored processes are still running\n");
+            printf("  -M --monitor-continuously    like monitor but never stop (similar to watch %s)\n", argv[0]);
+            printf("  -a --additional-command cmd  add additional command to default command list\n");
+            printf("  -c --command cmd             monitor only this command name (ex: firefox)\n");
+            printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
+            printf("  -i --ignore-file file        do not report process if using file\n");
+            printf("  -o --open-mode {r|w}         report only files opened for read or write\n");
+            printf("  -v --version                 show program version and exit\n");
+            printf("  -h --help                    display this help and exit\n");
             printf("\n\n");
-            printf("Multiple options allowed for: -c -p -i. Use PROGRESS_ARGS for permanent arguments.\n");
+            printf("Multiple options allowed for: -a -c -p -i. Use PROGRESS_ARGS for permanent arguments.\n");
             exit(EXIT_SUCCESS);
             break;
 
@@ -569,21 +597,31 @@ while(1) {
             rp = realpath(optarg, NULL);
             ignore_file_list_cnt++;
             ignore_file_list = realloc(ignore_file_list, ignore_file_list_cnt * sizeof(char *));
+            assert(ignore_file_list != NULL);
             if (rp)
                 ignore_file_list[ignore_file_list_cnt - 1] = rp;
             else
                 ignore_file_list[ignore_file_list_cnt - 1] = strdup(optarg); // file does not exist yet, it seems
             break;
 
+        case 'a':
+            proc_names_cnt++;
+            proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
+            assert(proc_names != NULL);
+            proc_names[proc_names_cnt - 1] = strdup(optarg);
+            break;
+
         case 'c':
             proc_specifiq_name_cnt++;
             proc_specifiq_name = realloc(proc_specifiq_name, proc_specifiq_name_cnt * sizeof(char *));
+            assert(proc_specifiq_name != NULL);
             proc_specifiq_name[proc_specifiq_name_cnt - 1] = strdup(optarg);
             break;
 
         case 'p':
             proc_specifiq_pid_cnt++;
             proc_specifiq_pid = realloc(proc_specifiq_pid, proc_specifiq_pid_cnt * sizeof(pid_t));
+            assert(proc_specifiq_pid != NULL);
             proc_specifiq_pid[proc_specifiq_pid_cnt - 1] = atof(optarg);
             break;
 
@@ -691,7 +729,6 @@ signed char search_all = 1;
 static signed char first_pass = 1;
 
 pid_count = 0;
-
 if (!flag_monitor && !flag_monitor_continuous)
     first_pass = 0;
 
@@ -723,7 +760,7 @@ if (proc_specifiq_pid) {
 }
 
 if (search_all) {
-    for (i = 0 ; proc_names[i] ; i++) {
+    for (i = 0 ; i < proc_names_cnt ; i++) {
         pid_count += find_pids_by_binary_name(proc_names[i],
                                               pidinfo_list + pid_count,
                                               MAX_PIDS - pid_count);
@@ -758,7 +795,7 @@ if (!pid_count) {
     }
     if (!proc_specifiq_pid && !proc_specifiq_name_cnt) {
         nfprintf(stderr,"No command currently running: ");
-        for (i = 0 ; proc_names[i] ; i++) {
+        for (i = 0 ; i < proc_names_cnt ; i++) {
             nfprintf(stderr,"%s, ", proc_names[i]);
         }
     }
@@ -889,6 +926,17 @@ if(flag_monitor || flag_monitor_continuous)
 exit(0);
 }
 
+// Setup the default commands as a dynamic list
+void populate_proc_names() {
+    int i;
+    for(i = 0 ; default_proc_names[i] ; i++) {
+        proc_names_cnt++;
+        proc_names = realloc(proc_names, proc_names_cnt * sizeof(char *));
+        assert(proc_names != NULL);
+        proc_names[proc_names_cnt - 1] = default_proc_names[i];
+    }
+}
+
 int main(int argc, char *argv[])
 {
 pid_t nb_pid;
@@ -896,6 +944,8 @@ struct winsize ws;
 wordexp_t env_wordexp;
 char *env_progress_args;
 char *env_progress_args_full;
+
+populate_proc_names();
 
 env_progress_args = getenv("PROGRESS_ARGS");
 
@@ -906,6 +956,7 @@ if (env_progress_args) {
     // argv[0] + ' ' + env_progress_args + '\0'
     full_len = strlen(argv[0]) + 1 + strlen(env_progress_args) + 1;
     env_progress_args_full = malloc(full_len * sizeof(char));
+    assert(env_progress_args_full != NULL);
     sprintf(env_progress_args_full, "%s %s", argv[0], env_progress_args);
 
     if (wordexp(env_progress_args_full, &env_wordexp, 0)) {
@@ -919,6 +970,7 @@ parse_options(argc,argv);
 // ws.ws_row, ws.ws_col
 ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 if (flag_monitor || flag_monitor_continuous) {
+    setlocale(LC_CTYPE, "");
     if ((mainwin = initscr()) == NULL ) {
         fprintf(stderr, "Error initialising ncurses.\n");
         exit(EXIT_FAILURE);
