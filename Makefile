@@ -17,7 +17,7 @@ ifeq ($(UNAME), Darwin)
     override LDFLAGS += -lncurses
 endif
 ifeq ($(UNAME), FreeBSD)
-    override LDFLAGS += -lncurses
+    override LDFLAGS += -lncurses -lprocstat
 endif
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin

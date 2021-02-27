@@ -54,6 +54,15 @@
 # include <sys/disk.h>
 #endif // __FreeBSD__
 
+#ifdef __FreeBSD__
+# include <sys/param.h>
+# include <sys/queue.h>
+# include <sys/socket.h>
+# include <sys/sysctl.h>
+# include <sys/user.h>
+# include <libprocstat.h>
+#endif
+
 #include "progress.h"
 #include "sizes.h"
 #include "hlist.h"
@@ -187,7 +196,8 @@ for(i = 0; i < nb_processes; ++i) {
 free(pids);
 return pid_count;
 }
-#else
+#endif // __APPLE__
+#ifdef __linux__
 int find_pid_by_id(pid_t pid, pidinfo_t *pid_list)
 {
 char fullpath_exe[MAXPATHLEN + 1];
@@ -263,7 +273,86 @@ while ((direntp = readdir(proc)) != NULL) {
 closedir(proc);
 return pid_count;
 }
-#endif
+#endif // __linux__
+#ifdef __FreeBSD__
+int find_pid_by_id(pid_t pid, pidinfo_t *pid_list)
+{
+struct procstat *procstat;
+struct kinfo_proc *procs;
+unsigned int proc_count;
+
+struct kinfo_proc *proc;
+char pathname[PATH_MAX];
+
+int i, found = 0;
+
+procstat = procstat_open_sysctl();
+assert(procstat != NULL);
+
+procs = procstat_getprocs(procstat, KERN_PROC_PID, pid, &proc_count);
+// procstat doesn't seem to set errno, so don't nperror()
+assert(procs != NULL);
+
+for (i = 0; i < proc_count; i++) {
+    proc = &procs[i];
+    procstat_getpathname(procstat, proc, pathname, sizeof(pathname));
+    if (strlen(pathname) == 0)
+        // kernel thread I guess?
+        continue;
+
+    pid_list[0].pid = pid;
+    strcpy(pid_list[0].name, basename(pathname));
+    found = 1;
+    break;
+}
+
+procstat_freeprocs(procstat, procs);
+procstat_close(procstat);
+
+return found;
+}
+
+int find_pids_by_binary_name(char *bin_name, pidinfo_t *pid_list, int max_pids)
+{
+struct procstat *procstat;
+struct kinfo_proc *procs;
+unsigned int proc_count;
+
+struct kinfo_proc *proc;
+char pathname[PATH_MAX];
+
+int pid_count = 0;
+int i;
+
+procstat = procstat_open_sysctl();
+assert(procstat != NULL);
+
+procs = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &proc_count);
+// procstat doesn't seem to set errno, so don't nperror()
+assert(procs != NULL);
+
+for (i = 0; i < proc_count; i++) {
+    proc = &procs[i];
+    procstat_getpathname(procstat, proc, pathname, sizeof(pathname));
+    if (strlen(pathname) == 0)
+        // kernel thread I guess? see proc->ki_comm instead
+        continue;
+
+    if (!strcmp(basename(pathname), bin_name)) {
+        pid_list[pid_count].pid = proc->ki_pid;
+        strcpy(pid_list[pid_count].name, bin_name);
+        pid_count++;
+        if (pid_count == max_pids)
+            break;
+    }
+}
+
+procstat_freeprocs(procstat, procs);
+procstat_close(procstat);
+
+return pid_count;
+}
+#endif // __FreeBSD__
 
 #ifdef __APPLE__
 int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
@@ -307,7 +396,8 @@ for(i = 0; i < numberOfProcFDs; i++) {
 }
 return count;
 }
-#else
+#endif // __APPLE__
+#ifdef __linux__
 int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
 {
 DIR *proc;
@@ -370,13 +460,76 @@ while ((direntp = readdir(proc)) != NULL) {
 closedir(proc);
 return count;
 }
-#endif
+#endif // __linux__
+#ifdef __FreeBSD__
+int find_fd_for_pid(pid_t pid, int *fd_list, int max_fd)
+{
+struct procstat *procstat;
+struct kinfo_proc *procs;
+unsigned int proc_count;
+
+struct kinfo_proc *proc;
+struct filestat *fstat;
+struct filestat_list *fstat_list;
+
+int count = 0;
+int i;
+
+procstat = procstat_open_sysctl();
+assert(procstat != NULL);
+
+procs = procstat_getprocs(procstat, KERN_PROC_PID, pid, &proc_count);
+// procstat doesn't seem to set errno, so don't nperror()
+assert(procs != NULL);
+
+for (i = 0; i < proc_count; i++) {
+    proc = &procs[i];
+
+    fstat_list = procstat_getfiles(procstat, proc, 0);
+    if (fstat_list == NULL)
+        continue;
+    STAILQ_FOREACH(fstat, fstat_list, next) {
+        if (fstat->fs_type != PS_FST_TYPE_VNODE)
+            continue;
+        if (fstat->fs_fd < 0) // usually non-zero fs_uflags: PS_FST_UFLAG_{TEXT,CTTY,...}
+            continue;
+
+        struct vnstat vn;
+        char errbuf[_POSIX2_LINE_MAX];
+
+        if (procstat_get_vnode_info(procstat, fstat, &vn, errbuf) != 0)
+            // see errbuf
+            continue;
+
+        if (!(vn.vn_type == PS_FST_VTYPE_VREG || vn.vn_type == PS_FST_VTYPE_VBLK))
+            continue;
+
+        if (is_ignored_file(fstat->fs_path))
+            continue;
+
+        // OK, we've found a potential interesting file.
+        fd_list[count++] = fstat->fs_fd;
+        // fstat->fs_offset is looked up once again in get_fdinfo()
+
+        if (count == max_fd)
+            break;
+    }
+
+    procstat_freefiles(procstat, fstat_list);
+}
+
+procstat_freeprocs(procstat, procs);
+procstat_close(procstat);
+
+return count;
+}
+#endif // __FreeBSD__
 
 
 signed char get_fdinfo(pid_t pid, int fdnum, fdinfo_t *fd_info)
 {
 struct stat stat_buf;
-#ifndef __APPLE__
+#ifdef __linux__
 char fdpath[MAXPATHLEN + 1];
 char line[LINE_LEN];
 FILE *fp;
@@ -392,7 +545,8 @@ struct vnode_fdinfowithpath vnodeInfo;
 if (proc_pidfdinfo(pid, fdnum, PROC_PIDFDVNODEPATHINFO, &vnodeInfo, PROC_PIDFDVNODEPATHINFO_SIZE) <= 0)
     return 0;
 strncpy(fd_info->name, vnodeInfo.pvip.vip_path, MAXPATHLEN);
-#else
+#endif // __APPLE__
+#ifdef __linux__
 ssize_t len;
 snprintf(fdpath, MAXPATHLEN, "%s/%d/fd/%d", PROC_PATH, pid, fdnum);
 
@@ -404,6 +558,62 @@ else {
     return 0;
 }
 #endif
+#ifdef __FreeBSD__
+struct procstat *procstat;
+struct kinfo_proc *procs;
+unsigned int proc_count;
+
+struct kinfo_proc *proc;
+struct filestat *fstat;
+struct filestat_list *fstat_list;
+
+int i;
+
+procstat = procstat_open_sysctl();
+assert(procstat != NULL);
+
+procs = procstat_getprocs(procstat, KERN_PROC_PID, pid, &proc_count);
+// procstat doesn't seem to set errno, so don't nperror()
+assert(procs != NULL);
+
+for (i = 0; i < proc_count; i++) {
+    proc = &procs[i];
+
+    fstat_list = procstat_getfiles(procstat, proc, 0);
+    if (fstat_list == NULL)
+        continue;
+
+    gettimeofday(&fd_info->tv, &tz);
+
+    STAILQ_FOREACH(fstat, fstat_list, next) {
+        if (fstat->fs_fd != fdnum)
+            continue;
+
+        strncpy(fd_info->name, fstat->fs_path, MAXPATHLEN);
+
+        struct vnstat vn;
+        char errbuf[_POSIX2_LINE_MAX];
+
+        if (procstat_get_vnode_info(procstat, fstat, &vn, errbuf) != 0)
+            // see errbuf
+            continue;
+
+        fd_info->pos = fstat->fs_offset;
+        // XXX PS_FST_FFLAG_APPEND?
+        fd_info->mode = (
+            fstat->fs_fflags & (PS_FST_FFLAG_WRITE | PS_FST_FFLAG_READ) ? PM_READWRITE :
+            fstat->fs_fflags & PS_FST_FFLAG_WRITE ? PM_WRITE :
+            fstat->fs_fflags & PS_FST_FFLAG_READ ? PM_READ :
+            0
+        );
+    }
+
+    procstat_freefiles(procstat, fstat_list);
+}
+
+procstat_freeprocs(procstat, procs);
+procstat_close(procstat);
+#endif // __FreeBSD__
 
 if (stat(fd_info->name, &stat_buf) == -1) {
     //~ printf("[debug] %i - %s\n",pid,fd_info->name);
@@ -467,7 +677,8 @@ if (vnodeInfo.pfi.fi_openflags & FWRITE)
     fd_info->mode = PM_WRITE;
 if (vnodeInfo.pfi.fi_openflags & FREAD && vnodeInfo.pfi.fi_openflags & FWRITE)
     fd_info->mode = PM_READWRITE;
-#else
+#endif // __APPLE__
+#ifdef __linux__
 flags = 0;
 fd_info->pos = 0;
 
@@ -496,7 +707,7 @@ if ((flags & O_ACCMODE) == O_RDWR)
     fd_info->mode = PM_READWRITE;
 
 fclose(fp);
-#endif
+#endif // __linux__
 return 1;
 }
 
