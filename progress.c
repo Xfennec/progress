@@ -73,7 +73,12 @@ static int proc_names_cnt;
 static char **proc_names;
 char *default_proc_names[] = {"cp", "mv", "dd", "tar", "cat", "rsync", "scp",
     "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
-    "sha224sum", "sha256sum", "sha384sum", "sha512sum", "adb",
+    "sha224sum", "sha256sum", "sha384sum", "sha512sum",
+#ifdef __FreeBSD__
+    "md5", "sha1", "sha224", "sha256", "sha512", "sha512t256", "rmd160",
+    "skein256", "skein512", "skein1024",
+#endif
+    "adb",
     "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za", "zip", "unzip",
     "zcat", "bzcat", "lzcat",
     "coreutils",
