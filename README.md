@@ -4,7 +4,7 @@ progress - Coreutils Progress Viewer [![Build Status](https://travis-ci.org/Xfen
 What is it
 ----------
 
-This tool can be described as a **Tiny**, Dirty, Linux-and-OSX-Only C command
+This tool can be described as a **Tiny**, Dirty C command
 that looks for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip,
 cat, etc.) currently running on your system and displays the
 **percentage** of copied data. It can also show **estimated time** and **throughput**,
@@ -13,6 +13,8 @@ and provides a "top-like" mode (monitoring).
 ![progress screenshot with cp and mv](https://raw.github.com/Xfennec/progress/master/capture.png)
 
 _(After many requests: the colors in the shell come from [powerline-shell](https://github.com/milkbikis/powerline-shell). Try it, it's cool.)_
+
+`progress` works on Linux, FreeBSD and macOS.
 
 Formerly known as cv (Coreutils Viewer).
 
@@ -39,6 +41,8 @@ How do you build it from source
 -------------------------------
 
     make && make install
+
+On FreeBSD, substitute `make` with `gmake`.
 
 It depends on library ncurses, you may have to install corresponding packages (may be something like 'libncurses5-dev' or 'ncurses-devel').
 
