@@ -774,7 +774,7 @@ while(1) {
 
     switch (c) {
         case 'v':
-            printf("progress version %s\n",PROGRESS_VERSION);
+            printf("progress version %s\n", PROGRESS_VERSION);
             exit(EXIT_SUCCESS);
             break;
 
