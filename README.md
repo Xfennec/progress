@@ -25,6 +25,10 @@ On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
 
     apt install progress
 
+On archlinux, run:
+
+    pacman -S progress
+
 On rpm-based systems (Red Hat, CentOS, SUSE, etc.), run:
 
     yum install progress
