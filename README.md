@@ -29,8 +29,9 @@ On archlinux, run:
 
     pacman -S progress
 
-On rpm-based systems (Red Hat, CentOS, SUSE, etc.), run:
+On rpm-based systems (Red Hat, CentOS, Fedora, SUSE, etc.), run one of these:
 
+    dnf install progress
     yum install progress
 
 On macOS, with homebrew, run:
