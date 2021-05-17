@@ -72,7 +72,7 @@
 static int proc_names_cnt;
 static char **proc_names;
 char *default_proc_names[] = {"cp", "mv", "dd", "tar", "bsdtar", "cat", "rsync", "scp",
-    "grep", "fgrep", "egrep", "cut", "sort", "md5sum", "sha1sum",
+    "grep", "fgrep", "egrep", "cut", "shred", "sort", "md5sum", "sha1sum",
     "sha224sum", "sha256sum", "sha384sum", "sha512sum",
 #ifdef __FreeBSD__
     "md5", "sha1", "sha224", "sha256", "sha512", "sha512t256", "rmd160",
