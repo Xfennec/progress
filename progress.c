@@ -85,7 +85,8 @@ char *default_proc_names[] = {"cp", "mv", "dd", "tar", "bsdtar", "cat", "rsync",
     "split",
     "gpg",
 #if defined(__APPLE__) || defined(__FreeBSD__)
-    "gcp", "gmv",
+    "gcp", "gmv", "gdd", "gnutar", "gcat", "gcut", "gsort", "gmd5sum",
+    "gsha1sum", "gsha224sum", "gssha256sum", "gsha384sum", "gsha512sum",
 #endif
     NULL
 };
