@@ -49,7 +49,7 @@ How do you build it from source
 
 On FreeBSD, substitute `make` with `gmake`.
 
-It depends on library ncurses, you may have to install corresponding packages (may be something like 'libncurses5-dev' or 'ncurses-devel').
+It depends on library ncurses, you may have to install corresponding packages (may be something like 'libncurses5-dev', 'libncursesw6' or 'ncurses-devel').
 
 How do you run it
 -----------------
