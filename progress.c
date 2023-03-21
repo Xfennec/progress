@@ -104,6 +104,7 @@ signed char flag_throughput = 0;
 signed char flag_monitor = 0;
 signed char flag_monitor_continuous = 0;
 signed char flag_open_mode = 0;
+signed char flag_full_display = 0;
 double throughput_wait_secs = 1;
 
 WINDOW *mainwin;
@@ -755,10 +756,11 @@ static struct option long_options[] = {
     {"pid",                  required_argument, 0, 'p'},
     {"ignore-file",          required_argument, 0, 'i'},
     {"open-mode",            required_argument, 0, 'o'},
+    {"full-display",         no_argument,       0, 'f'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMha:c:p:W:i:o:";
+static char *options_string = "vqdwmMha:c:p:W:i:o:f";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -798,6 +800,7 @@ while(1) {
             printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
             printf("  -i --ignore-file file        do not report process if using file\n");
             printf("  -o --open-mode {r|w}         report only files opened for read or write\n");
+            printf("  -f --full-display            display all files opened by all processes (max %d)\n", MAX_RESULTS);
             printf("  -v --version                 show program version and exit\n");
             printf("  -h --help                    display this help and exit\n");
             printf("\n\n");
@@ -871,6 +874,10 @@ while(1) {
                 fprintf(stderr,"Invalid --open-mode option value '%s'.\n", optarg);
                 exit(EXIT_FAILURE);
             }
+            break;
+
+        case 'f':
+            flag_full_display = 1;
             break;
 
         case '?':
@@ -1027,11 +1034,15 @@ if (!pid_count) {
 result_count = 0;
 
 for (i = 0 ; i < pid_count ; i++) {
+    if (result_count >= MAX_RESULTS)
+        // Do not continue if there is no more space to store results.
+        break;
+
     fd_count = find_fd_for_pid(pidinfo_list[i].pid, fdnum_list, MAX_FD_PER_PID);
 
     max_size = 0;
 
-    // let's find the biggest opened file
+    // Iterate through all FDs
     for (j = 0 ; j < fd_count ; j++) {
         get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
 
@@ -1040,11 +1051,25 @@ for (i = 0 ; i < pid_count ; i++) {
         if (flag_open_mode == PM_WRITE && fdinfo.mode != PM_WRITE && fdinfo.mode != PM_READWRITE)
             continue;
 
-        if (fdinfo.size > max_size) {
+        if (flag_full_display && result_count < MAX_RESULTS && fdinfo.size > 0) {
+            // Save all results if the flag is set, unless there's too many results already.
+            results[result_count].pid = pidinfo_list[i];
+            results[result_count].fd = fdinfo;
+            results[result_count].hbegin = NULL;
+            results[result_count].hend = NULL;
+            results[result_count].hsize = 0;
+
+            result_count++;
+        } else if (fdinfo.size > max_size) {
+            // let's find the biggest opened file
             biggest_fd = fdinfo;
             max_size = fdinfo.size;
         }
     }
+
+    if (flag_full_display)
+        // Do not determine the biggest FD if the user requested all files.
+        continue;
 
     if (!max_size) { // nothing found
     // this display is the root of too many confusion for the users, let's
