@@ -1,0 +1,8 @@
+[3128355] gzip /home/ec2-user/directory1/dumy300-2
+[3128355] gzip /home/ec2-user/directory1/dumy500-2
+[3129815] cp /home/ec2-user/directory1/dumy300
+[3128355] gzip /home/ec2-user/directory1/dumy500-2
+[3129846] cp /home/ec2-user/directory1/dumy300
+[3128355] gzip /home/ec2-user/directory1/dumy500-2
+[3129920] cp /home/ec2-user/directory1/dumy300
+[3128355] gzip /home/ec2-user/directory1/dumy500-2

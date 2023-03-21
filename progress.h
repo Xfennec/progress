@@ -59,5 +59,6 @@ typedef struct result_t {
     hlist *hend;
     int hsize;
 } result_t;
+FILE *timeline;
 
 #endif
