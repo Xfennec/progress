@@ -21,7 +21,7 @@ Formerly known as cv (Coreutils Viewer).
 How do you install it
 ---------------------
 
-On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
+On deb-based systems (Debian, Ubuntu, Mint, etc.), run:
 
     apt install progress
 
@@ -33,6 +33,10 @@ On rpm-based systems (Red Hat, CentOS, Fedora, SUSE, etc.), run one of these:
 
     dnf install progress
     yum install progress
+    
+On any GNU/Linux distribution using the guix package manager, run:
+    
+    guix install progress
 
 On macOS, with homebrew, run:
 
