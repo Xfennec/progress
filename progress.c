@@ -105,6 +105,7 @@ signed char flag_monitor = 0;
 signed char flag_monitor_continuous = 0;
 signed char flag_open_mode = 0;
 double throughput_wait_secs = 1;
+int max_pid_limit = 32;
 
 WINDOW *mainwin;
 
@@ -753,12 +754,13 @@ static struct option long_options[] = {
     {"additional-command",   required_argument, 0, 'a'},
     {"command",              required_argument, 0, 'c'},
     {"pid",                  required_argument, 0, 'p'},
+    {"total-pid-count",      required_argument, 0, 't'},
     {"ignore-file",          required_argument, 0, 'i'},
     {"open-mode",            required_argument, 0, 'o'},
     {0, 0, 0, 0}
 };
 
-static char *options_string = "vqdwmMha:c:p:W:i:o:";
+static char *options_string = "vqdwmMha:c:p:W:t:i:o:";
 int c,i;
 int option_index = 0;
 char *rp;
@@ -798,6 +800,7 @@ while(1) {
             printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
             printf("  -i --ignore-file file        do not report process if using file\n");
             printf("  -o --open-mode {r|w}         report only files opened for read or write\n");
+            printf("  -t --total-pid count         the total number of processes to display (default=%d)\n", max_pid_limit);
             printf("  -v --version                 show program version and exit\n");
             printf("  -h --help                    display this help and exit\n");
             printf("\n\n");
@@ -861,6 +864,10 @@ while(1) {
             flag_throughput = 1;
             throughput_wait_secs = atof(optarg);
             break;
+        
+        case 't':
+            max_pid_limit = atoi(optarg);
+            break;
 
         case 'o':
             if (!strcmp("r", optarg))
@@ -903,8 +910,8 @@ nprintf("%d:%02d:%02d", p->tm_hour, p->tm_min, p->tm_sec);
 
 void copy_and_clean_results(result_t *results, int result_count, char copy)
 {
-static result_t old_results[MAX_RESULTS];
-static int old_result_count = 0;
+result_t old_results[max_pid_limit];
+int old_result_count = 0;
 
 if (copy) {
     int i;
@@ -934,7 +941,7 @@ int monitor_processes(int *nb_pid)
 {
 int pid_count, fd_count, result_count;
 int i,j;
-pidinfo_t pidinfo_list[MAX_PIDS];
+pidinfo_t pidinfo_list[max_pid_limit];
 fdinfo_t fdinfo;
 fdinfo_t biggest_fd;
 int fdnum_list[MAX_FD_PER_PID];
@@ -943,7 +950,7 @@ char fsize[64];
 char fpos[64];
 char ftroughput[64];
 float perc;
-result_t results[MAX_RESULTS];
+result_t results[max_pid_limit];
 signed char still_there;
 signed char search_all = 1;
 static signed char first_pass = 1;
@@ -958,9 +965,9 @@ if (proc_specifiq_name_cnt) {
     for (i = 0 ; i < proc_specifiq_name_cnt ; ++i) {
         pid_count += find_pids_by_binary_name(proc_specifiq_name[i],
                                               pidinfo_list + pid_count,
-                                              MAX_PIDS - pid_count);
-        if(pid_count >= MAX_PIDS) {
-            nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+                                              max_pid_limit - pid_count);
+        if(pid_count >= max_pid_limit) {
+            nfprintf(stderr, "Found too much procs (max = %d)\n",max_pid_limit);
             return 0;
         }
     }
@@ -972,8 +979,8 @@ if (proc_specifiq_pid) {
         pid_count += find_pid_by_id(proc_specifiq_pid[i],
                                     pidinfo_list + pid_count);
 
-        if(pid_count >= MAX_PIDS) {
-            nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+        if(pid_count >= max_pid_limit) {
+            nfprintf(stderr, "Found too much procs (max = %d)\n",max_pid_limit);
             return 0;
         }
     }
@@ -983,9 +990,9 @@ if (search_all) {
     for (i = 0 ; i < proc_names_cnt ; i++) {
         pid_count += find_pids_by_binary_name(proc_names[i],
                                               pidinfo_list + pid_count,
-                                              MAX_PIDS - pid_count);
-        if(pid_count >= MAX_PIDS) {
-            nfprintf(stderr, "Found too much procs (max = %d)\n",MAX_PIDS);
+                                              max_pid_limit - pid_count);
+        if(pid_count >= max_pid_limit) {
+            nfprintf(stderr, "Found too much procs (max = %d)\n",max_pid_limit);
             return 0;
         }
     }
