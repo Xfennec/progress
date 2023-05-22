@@ -797,7 +797,7 @@ while(1) {
             printf("  -c --command cmd             monitor only this command name (ex: firefox)\n");
             printf("  -p --pid id                  monitor only this process ID (ex: `pidof firefox`)\n");
             printf("  -i --ignore-file file        do not report process if using file\n");
-            printf("  -o --open-mode {r|w}         report only files opened for read or write\n");
+            printf("  -o --open-mode {r|w|u}       report only files opened for read, write, or read and write\n");
             printf("  -v --version                 show program version and exit\n");
             printf("  -h --help                    display this help and exit\n");
             printf("\n\n");
@@ -867,6 +867,8 @@ while(1) {
                 flag_open_mode = PM_READ;
             else if (!strcmp("w", optarg))
                 flag_open_mode = PM_WRITE;
+            else if (!strcmp("u", optarg))
+                flag_open_mode = PM_READWRITE;
             else {
                 fprintf(stderr,"Invalid --open-mode option value '%s'.\n", optarg);
                 exit(EXIT_FAILURE);
@@ -1035,9 +1037,8 @@ for (i = 0 ; i < pid_count ; i++) {
     for (j = 0 ; j < fd_count ; j++) {
         get_fdinfo(pidinfo_list[i].pid, fdnum_list[j], &fdinfo);
 
-        if (flag_open_mode == PM_READ && fdinfo.mode != PM_READ && fdinfo.mode != PM_READWRITE)
-            continue;
-        if (flag_open_mode == PM_WRITE && fdinfo.mode != PM_WRITE && fdinfo.mode != PM_READWRITE)
+        // only select files with specified open mode
+        if (flag_open_mode && flag_open_mode != fdinfo.mode)
             continue;
 
         if (fdinfo.size > max_size) {
