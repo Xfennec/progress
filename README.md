@@ -29,10 +29,13 @@ On archlinux, run:
 
     pacman -S progress
 
-On rpm-based systems (Red Hat, CentOS, Fedora, SUSE, etc.), run one of these:
+On Fedora, run:
 
     dnf install progress
-    yum install progress
+
+On openSUSE, run:
+
+    zypper install progress
 
 On macOS, with homebrew, run:
 
