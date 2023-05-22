@@ -86,8 +86,10 @@ and much more.
 How does it work
 ----------------
 
-It simply scans `/proc` for interesting commands, and then looks at
+It simply scans `/proc` for interesting commands*, and then looks at
 directories `fd` and `fdinfo` to find opened files and seek positions,
 and reports status for the largest file.
 
 It's very light and compatible with virtually any command.
+
+<em>(*) on macOS, it does the same thing using libproc</em>
