@@ -1,10 +1,10 @@
-progress - Coreutils Progress Viewer [![Build Status](https://travis-ci.org/Xfennec/progress.svg?branch=master)](https://travis-ci.org/Xfennec/progress)
+progress - Coreutils Progress Viewer
 =====================
 
 What is it
 ----------
 
-This tool can be described as a **Tiny**, Dirty C command
+This tool can be described as a **tiny**, dirty C command
 that looks for coreutils basic commands (cp, mv, dd, tar, gzip/gunzip,
 cat, etc.) currently running on your system and displays the
 **percentage** of copied data. It can also show **estimated time** and **throughput**,
@@ -25,14 +25,17 @@ On deb-based systems (Debian, Ubuntu, Mint, etc.) run:
 
     apt install progress
 
-On archlinux, run:
+On Arch Linux, run:
 
     pacman -S progress
 
-On rpm-based systems (Red Hat, CentOS, Fedora, SUSE, etc.), run one of these:
+On Fedora, run:
 
     dnf install progress
-    yum install progress
+
+On openSUSE, run:
+
+    zypper install progress
 
 On macOS, with homebrew, run:
 
@@ -49,7 +52,7 @@ How do you build it from source
 
 On FreeBSD, substitute `make` with `gmake`.
 
-It depends on library ncurses, you may have to install corresponding packages (may be something like 'libncurses5-dev' or 'ncurses-devel').
+It depends on the library ncurses, you may have to install corresponding packages (maybe something like 'libncurses5-dev', 'libncursesw6' or 'ncurses-devel').
 
 How do you run it
 -----------------
@@ -70,7 +73,7 @@ A few examples. You can:
 
         watch progress -wc firefox
 
-* look at your Web server activity:
+* look at your web server activity:
 
         progress -c httpd
 
@@ -83,8 +86,10 @@ and much more.
 How does it work
 ----------------
 
-It simply scans `/proc` for interesting commands, and then looks at
+It simply scans `/proc` for interesting commands*, and then looks at
 directories `fd` and `fdinfo` to find opened files and seek positions,
 and reports status for the largest file.
 
-It's very light, and compatible with virtually any command.
+It's very light and compatible with virtually any command.
+
+<em>(*) on macOS, it does the same thing using libproc</em>

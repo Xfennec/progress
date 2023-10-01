@@ -8,10 +8,10 @@ ifeq ($(UNAME), Linux)
     ifeq (, $(shell which $(PKG_CONFIG) 2> /dev/null))
     $(error "pkg-config command not found")
     endif
-    ifeq (, $(shell $(PKG_CONFIG) ncurses --libs 2> /dev/null))
+    ifeq (, $(shell $(PKG_CONFIG) ncursesw --libs 2> /dev/null))
     $(error "ncurses package not found")
     endif
-    override LDFLAGS += $(shell $(PKG_CONFIG) ncurses --libs)
+    override LDFLAGS += $(shell $(PKG_CONFIG) ncursesw --libs)
 endif
 ifeq ($(UNAME), Darwin)
     override LDFLAGS += -lncurses
@@ -22,6 +22,7 @@ endif
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man/man1
+ZSHDIR = $(PREFIX)/share/zsh/site-functions
 
 $(OBJ) : progress.o sizes.o hlist.o
 	$(CC) -Wall $^ -o $@ $(LDFLAGS)
@@ -38,6 +39,10 @@ install : $(OBJ)
 	@mkdir -p $(DESTDIR)$(MANDIR)
 	@install -pm0644 $(OBJ).1 $(DESTDIR)$(MANDIR)/ || \
 	echo "Failed. Try "make PREFIX=~ install" ?"
+	@echo "Installing zsh completion to $(DESTDIR)$(ZSHDIR) ..."
+	@install -Dpm0644 _$(OBJ) -t $(DESTDIR)$(ZSHDIR)/ || \
+	echo "Failed. Try "make PREFIX=~ install" ?"
 uninstall :
 	@rm -f $(DESTDIR)$(BINDIR)/$(OBJ)
 	@rm -f $(DESTDIR)$(MANDIR)/$(OBJ).1
+	@rm -f $(DESTDIR)$(ZSHDIR)/_$(OBJ)

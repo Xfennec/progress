@@ -1,0 +1,25 @@
+#compdef progress
+# ------------------------------------------------------------------------------
+# Description
+# -----------
+#
+#  zsh completion script for progress
+#
+# ------------------------------------------------------------------------------
+
+local options=(
+  {-q,--quiet}'[hides all messages]'
+  {-d,--debug}'[shows all warning/error messages]'
+  {-w,--wait}'[estimate I/O throughput and ETA (slower display)]'
+  '(-w)'{-W,--wait-delay}'[wait 'secs' seconds for I/O estimation (implies -w, default=1.0)]:secs'
+  {-m,--monitor}'[loop while monitored processes are still running]'
+  {-M,--monitor-continuously}'[like monitor but never stop (similar to watch progress)]'
+  {-a,--additional-command}'[add additional command to default command list]: :{_command_names -e}'
+  {-c,--command}'[monitor only this command name (ex: firefox)]: :{_command_names -e}'
+  {-p,--pid}'[monitor only this process ID (ex: $(pidof firefox))]: :_ps'
+  {-i,--ignore-file}'[do not report process if using file]: :_files'
+  {-o,--open-mode}'[report only files opened for read or write]:rw:(r w)'
+  '(- : *)'{-v,--version}'[show program version and exit]'
+  '(- : *)'{-h,--help}'[display this help and exit]'
+)
+_arguments -s -S $options
