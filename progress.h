@@ -25,11 +25,11 @@
 
 #include "hlist.h"
 
-#define PROGRESS_VERSION         "0.16"
+#define PROGRESS_VERSION         "0.17"
 
 #define PROC_PATH       "/proc"
-#define MAX_PIDS        32
-#define MAX_RESULTS     32
+#define MAX_PIDS        128
+#define MAX_RESULTS     128
 #define MAX_FD_PER_PID  512
 #define LINE_LEN        256
 
