@@ -778,6 +778,7 @@ while(1) {
             exit(EXIT_SUCCESS);
             break;
 
+        case '?':
         case 'h':
             printf("progress - Coreutils Viewer\n");
             printf("---------------------\n");
@@ -800,6 +801,7 @@ while(1) {
             printf("  -o --open-mode {r|w|u}       report only files opened for read, write, or read and write\n");
             printf("  -v --version                 show program version and exit\n");
             printf("  -h --help                    display this help and exit\n");
+            printf("  -?                           same as -h (--help)\n");
             printf("\n\n");
             printf("Multiple options allowed for: -a -c -p -i. Use PROGRESS_ARGS for permanent arguments.\n");
             exit(EXIT_SUCCESS);
@@ -875,7 +877,6 @@ while(1) {
             }
             break;
 
-        case '?':
         default:
             exit(EXIT_FAILURE);
     }
