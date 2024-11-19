@@ -45,6 +45,10 @@ On macOS, with MacPorts, run:
 
     port install progress
 
+Packaging status:
+-----------------
+[![Packaging status](https://repology.org/badge/vertical-allrepos/progress.svg?columns=3)](https://repology.org/project/progress/versions)
+
 How do you build it from source
 -------------------------------
 
