@@ -79,7 +79,7 @@ char *default_proc_names[] = {"cp", "mv", "dd", "tar", "bsdtar", "cat", "rsync",
     "skein256", "skein512", "skein1024",
 #endif
     "adb",
-    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za", "zip", "unzip",
+    "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "lzma", "unlzma", "7z", "7za", "zip", "unzip", "lzip",
     "zcat", "bzcat", "lzcat",
     "coreutils",
     "split",
